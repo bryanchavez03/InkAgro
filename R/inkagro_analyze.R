@@ -47,8 +47,11 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
                                 "+ (1|", env, ":", bloque, ")"))
     modelo  <- lme4::lmer(formula, data = datos)
 
+  } else if (diseno == "Cuadrado Latino") {
+    formula <- as.formula(paste(respuesta, "~", tratamiento, "+ row + col"))
+    modelo  <- aov(formula, data = datos)
   } else {
-    stop("Diseno no soportado en esta version.")
+    stop("Diseño no soportado en esta versión.")
   }
 
   # 4. Output limpio
