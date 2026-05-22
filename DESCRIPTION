@@ -13,3 +13,5 @@ Imports:
     agricolae,
     emmeans,
     lme4
+URL: https://github.com/bryanchavez03/InkAgro
+BugReports: https://github.com/bryanchavez03/InkAgro/issues
