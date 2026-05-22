@@ -1,0 +1,15 @@
+Package: InkAgro
+Title: Intelligent Platform for Agricultural Experimental Data Analysis
+Version: 0.1.0
+Authors@R: person("Bryan Joseph", "Chavez Velaisosa", 
+                   email = "7366989122@untrm.edu.pe", 
+                   role = c("aut", "cre"))
+Description: Automated pipeline for importing, cleaning, detecting 
+    experimental design, analyzing and reporting agricultural data.
+License: MIT + file LICENSE
+Encoding: UTF-8
+RoxygenNote: 7.0.0
+Imports: 
+    agricolae,
+    emmeans,
+    lme4
