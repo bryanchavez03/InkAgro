@@ -12,6 +12,9 @@ RoxygenNote: 7.0.0
 Imports: 
     agricolae,
     emmeans,
-    lme4
+    haven,
+    lme4,
+    readxl,
+    tools
 URL: https://github.com/bryanchavez03/InkAgro
 BugReports: https://github.com/bryanchavez03/InkAgro/issues
