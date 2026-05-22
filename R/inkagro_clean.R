@@ -1,4 +1,4 @@
-inkagro_clean <- function(datos) {
+inkagro_clean <- function(datos, verbose = TRUE) {
   # 1. Verificación que los datos existen
   if (!is.data.frame(datos)) {
     stop("Los datos deben ser un data.frame")
@@ -22,6 +22,6 @@ inkagro_clean <- function(datos) {
     if (is.character(x)) gsub("\\s+", "_", tolower(trimws(x))) else x
   }))
 
-  message("Limpieza completada.")
+  if (verbose) message("Limpieza completada.")
   return(datos)
 }

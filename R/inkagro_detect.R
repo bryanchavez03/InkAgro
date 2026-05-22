@@ -1,4 +1,4 @@
-inkagro_detect <- function(datos){
+inkagro_detect <- function(datos, verbose = TRUE){
   cols <- tolower (names(datos))
   # Diccionarios para los diferentes tipos de Diseño
   pal_bloque <- c("bloque", "bloco", "block", "rep",
@@ -32,7 +32,7 @@ inkagro_detect <- function(datos){
                 "pedigree", "variety_id",
                 "cultigen", "check",
                 "control", "test_entry",
-                "sample", "sample_id")
+                "sample", "sample_id","method")
 
   pal_factor <- c("factor_a", "factora", "fa",
                   "factor_b", "factorb", "fb",
@@ -149,7 +149,7 @@ inkagro_detect <- function(datos){
     diseno <- "No detectado - revise nombres de columnas"
   }
 
-  message("Diseño detectado: ", diseno)
+  if (verbose) message("Diseño detectado: ", diseno)
   return(diseno)
 }
 

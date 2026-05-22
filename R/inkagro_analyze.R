@@ -1,10 +1,13 @@
 inkagro_analyze <- function(datos, respuesta, tratamiento,
                             bloque = NULL, fa = NULL, fb = NULL,
                             rep = NULL, iblock = NULL,
-                            gen = NULL, env = NULL) {
+                            gen = NULL, env = NULL,
+                            verbose = TRUE,
+                            n_obs = nrow(datos),
+                            n_vars = ncol(datos))  {
 
   # 1. Detectar diseno
-  diseno <- inkagro_detect(datos)
+  diseno <- inkagro_detect(datos, verbose = FALSE)
 
   # 2. Convertir a factor
   datos[[tratamiento]] <- as.factor(datos[[tratamiento]])
@@ -48,23 +51,36 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
     stop("Diseno no soportado en esta version.")
   }
 
-  # 4. Output InkAgro
+  # 4. Output limpio
   cat("\n")
   cat("=========================================\n")
   cat(" InkAgro v0.1.0\n")
-  cat(" Diseno detectado :", diseno, "\n")
-  cat(" Variable respuesta:", respuesta, "\n")
+  cat(" Analisis de Datos Agricolas\n")
   cat("=========================================\n\n")
-
+  cat(" Datos         :", n_obs, "observaciones x", n_vars, "variables\n")
+  cat(" Diseno        :", diseno, "\n")
+  cat(" Respuesta     :", respuesta, "\n")
+  cat(" Tratamiento   :", tratamiento, "\n")
+  if (!is.null(bloque)) cat(" Bloque        :", bloque, "\n")
+  cat("\n")
+  cat("-----------------------------------------\n")
+  cat(" Reporte de Calidad\n")
+  cat("-----------------------------------------\n")
+  na_total <- sum(is.na(datos))
+  if (na_total == 0) {
+    cat(" Valores faltantes : Ninguno\n")
+  } else {
+    cat(" Valores faltantes :", na_total, "\n")
+  }
+  cat(" Variables         :", n_vars, "\n\n")
   cat("-----------------------------------------\n")
   cat(" Tabla ANOVA\n")
   cat("-----------------------------------------\n")
   print(summary(modelo))
 
-  # 5. Comparacion de medias
   cat("\n")
   cat("-----------------------------------------\n")
-  cat(" Comparacion de medias\n")
+  cat(" Comparacion de Medias — Tukey HSD\n")
   cat("-----------------------------------------\n")
 
   if (diseno %in% c("DCA", "DBCA")) {
