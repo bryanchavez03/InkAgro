@@ -61,7 +61,7 @@ inkagro_clean <- function(datos, verbose = TRUE,
       message("Limpieza completada. Valores faltantes imputados correctamente.")
     } else {
       message("Limpieza completada. ", na_tratados, " valores faltantes no pudieron ser imputados.")
-      return(datos)
     }
   }
+  return(datos)
 }

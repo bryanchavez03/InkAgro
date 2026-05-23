@@ -4,11 +4,12 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
                             gen = NULL, env = NULL,
                             verbose = TRUE,
                             n_obs = nrow(datos),
-                            n_vars = ncol(datos))  {
+                            n_vars = ncol(datos)) {
 
-  #  Detectar diseno
+  # 1. Detectar diseno
   diseno <- inkagro_detect(datos, verbose = FALSE)
-  # Convertir parametros a minuscula para coincidir con datos limpios
+
+  # 2. Convertir parametros a minuscula
   respuesta   <- tolower(respuesta)
   tratamiento <- tolower(tratamiento)
   if (!is.null(bloque))  bloque  <- tolower(bloque)
@@ -18,7 +19,8 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
   if (!is.null(iblock))  iblock  <- tolower(iblock)
   if (!is.null(gen))     gen     <- tolower(gen)
   if (!is.null(env))     env     <- tolower(env)
-  #  Detectar columnas automaticamente si no se declaran
+
+  # 3. Detectar columnas automaticamente si no se declaran
   cols <- tolower(names(datos))
 
   if (is.null(fa)) {
@@ -26,32 +28,28 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
     if (length(factores) >= 1) fa <- factores[1]
     if (length(factores) >= 2) fb <- factores[2]
   }
-
   if (is.null(bloque)) {
     col_bloque <- cols[cols %in% pal_bloque]
     if (length(col_bloque) >= 1) bloque <- col_bloque[1]
   }
-
   if (is.null(rep)) {
     col_rep <- cols[cols %in% pal_bloque]
     if (length(col_rep) >= 1) rep <- col_rep[1]
   }
-
   if (is.null(iblock)) {
     col_iblock <- cols[cols %in% pal_alpha]
     if (length(col_iblock) >= 1) iblock <- col_iblock[1]
   }
-
   if (is.null(gen)) {
     col_gen <- cols[cols %in% pal_trat]
     if (length(col_gen) >= 1) gen <- col_gen[1]
   }
-
   if (is.null(env)) {
     col_env <- cols[cols %in% pal_ambiente]
     if (length(col_env) >= 1) env <- col_env[1]
   }
-  #  Convertir a factor
+
+  # 4. Convertir a factor
   datos[[tratamiento]] <- as.factor(datos[[tratamiento]])
   if (!is.null(bloque))  datos[[bloque]]  <- as.factor(datos[[bloque]])
   if (!is.null(fa))      datos[[fa]]      <- as.factor(datos[[fa]])
@@ -61,7 +59,7 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
   if (!is.null(gen))     datos[[gen]]     <- as.factor(datos[[gen]])
   if (!is.null(env))     datos[[env]]     <- as.factor(datos[[env]])
 
-  # Modelo segun diseno
+  # 5. Modelo segun diseno
   if (diseno == "DCA") {
     formula <- as.formula(paste(respuesta, "~", tratamiento))
     modelo  <- aov(formula, data = datos)
@@ -70,15 +68,15 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
     formula <- as.formula(paste(respuesta, "~", bloque, "+", tratamiento))
     modelo  <- aov(formula, data = datos)
 
-  } else if (diseno == "Factorial" & !is.null(fa) & !is.null(fb) & !is.null(bloque)) {
-    formula <- as.formula(paste(respuesta, "~", bloque, "+", fa, "*", fb))
-    modelo  <- aov(formula, data = datos)
-
-  } else if (diseno == "Factorial" & !is.null(fa) & !is.null(fb)) {
-    # Trifactorial — tratamiento es el tercer factor
-    formula <- as.formula(paste(respuesta, "~", bloque, "+",
-                                tratamiento, "*", fa, "*", fb))
-    modelo  <- aov(formula, data = datos)
+  } else if (diseno == "Factorial") {
+    if (!is.null(bloque)) {
+      formula <- as.formula(paste(respuesta, "~", bloque, "+",
+                                  tratamiento, "*", fa, "*", fb))
+    } else {
+      formula <- as.formula(paste(respuesta, "~",
+                                  tratamiento, "*", fa, "*", fb))
+    }
+    modelo <- aov(formula, data = datos)
 
   } else if (diseno == "Parcelas Divididas") {
     formula <- as.formula(paste(respuesta, "~", fa, "*", fb,
@@ -98,13 +96,15 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
   } else if (diseno == "Cuadrado Latino") {
     col_fila <- cols[cols %in% pal_fila][1]
     col_col  <- cols[cols %in% pal_columna][1]
-    formula  <- as.formula(paste(respuesta, "~", tratamiento, "+", col_fila, "+", col_col))
+    formula  <- as.formula(paste(respuesta, "~", tratamiento, "+",
+                                 col_fila, "+", col_col))
     modelo   <- aov(formula, data = datos)
+
   } else {
-    stop("Diseño no soportado en esta versión.")
+    stop("Diseno no soportado en esta version.")
   }
 
-  #  Output limpio
+  # 6. Output limpio
   cat("\n")
   cat("=========================================\n")
   cat(" InkAgro v0.1.0\n")
@@ -137,6 +137,9 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
   cat("-----------------------------------------\n")
   print(summary(modelo))
 
+  # Verificacion de supuestos
+  inkagro_supuestos(modelo, datos, tratamiento)
+
   cat("\n")
   cat("-----------------------------------------\n")
   cat(" Comparacion de Medias — Tukey HSD\n")
@@ -149,12 +152,12 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
 
   } else if (diseno == "Factorial") {
     if (!is.null(fa) & !is.null(fb)) {
-      # Trifactorial con bloque
       p_triple <- summary(modelo)[[1]][paste0(tratamiento, ":", fa, ":", fb), "Pr(>F)"]
       if (!is.na(p_triple) && p_triple < 0.05) {
         cat(" Interaccion triple significativa (p < 0.05)\n")
         cat(" Usando efectos simples con emmeans\n\n")
-        em <- emmeans::emmeans(modelo, as.formula(paste("pairwise ~", tratamiento, "|", fa, "+", fb)))
+        em <- emmeans::emmeans(modelo, as.formula(paste("pairwise ~",
+                                                        tratamiento, "|", fa, "+", fb)))
         print(em)
         return(invisible(list(diseno = diseno, modelo = modelo, emmeans = em)))
       } else {
@@ -167,14 +170,16 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
         print(tukey_b$groups)
         print(tukey_c$groups)
         return(invisible(list(diseno = diseno, modelo = modelo,
-                              tukey_a = tukey_a, tukey_b = tukey_b, tukey_c = tukey_c)))
+                              tukey_a = tukey_a, tukey_b = tukey_b,
+                              tukey_c = tukey_c)))
       }
     } else {
       p_interaccion <- summary(modelo)[[1]][paste0(fa, ":", fb), "Pr(>F)"]
       if (!is.na(p_interaccion) && p_interaccion < 0.05) {
         cat(" Interaccion significativa (p < 0.05)\n")
         cat(" Usando efectos simples con emmeans\n\n")
-        em <- emmeans::emmeans(modelo, as.formula(paste("pairwise ~", fa, "|", fb)))
+        em <- emmeans::emmeans(modelo, as.formula(paste("pairwise ~",
+                                                        fa, "|", fb)))
         print(em)
         return(invisible(list(diseno = diseno, modelo = modelo, emmeans = em)))
       } else {
@@ -188,12 +193,13 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
                               tukey_a = tukey_a, tukey_b = tukey_b)))
       }
     }
-  } else if (diseno == "Cuadrado Latino") {
-    col_fila <- cols[cols %in% pal_fila][1]
-    col_col  <- cols[cols %in% pal_columna][1]
-    formula  <- as.formula(paste(respuesta, "~", tratamiento, "+", col_fila, "+", col_col))
-    modelo   <- aov(formula, data = datos)
 
+  } else if (diseno == "Cuadrado Latino") {
+    tukey <- agricolae::HSD.test(modelo, tratamiento, group = TRUE)
+    print(tukey$groups)
+    return(invisible(list(diseno = diseno, modelo = modelo, tukey = tukey)))
+
+  } else {
     em <- emmeans::emmeans(modelo, as.formula(paste("pairwise ~", tratamiento)))
     print(em)
     return(invisible(list(diseno = diseno, modelo = modelo, emmeans = em)))
