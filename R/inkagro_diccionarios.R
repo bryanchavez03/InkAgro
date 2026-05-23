@@ -24,7 +24,8 @@ pal_factor <- c("factor_a", "factora", "fa", "factor_b", "factorb", "fb",
                 "f1", "f2", "f3", "f4", "mainfactor", "secondaryfactor",
                 "primary_factor", "secondary_factor", "tillage", "dose",
                 "rate", "nitrogen", "phosphorus", "potassium", "fertilizer",
-                "irrigation", "density", "spacing", "temperature","season")
+                "irrigation", "density", "spacing", "temperature","season","dosis",
+                "dosis_n", "dosis_n_kg_ha")
 
 pal_parcela <- c("parcela_principal", "parcela", "pp", "subparcela",
                  "plot", "plot_id", "plotno", "plot_no", "plotnum",

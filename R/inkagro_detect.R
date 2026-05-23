@@ -1,9 +1,15 @@
 inkagro_detect <- function(datos, verbose = TRUE) {
-
   cols <- tolower(names(datos))
 
   # Excluir columnas no experimentales
   cols <- cols[!cols %in% cols_excluir]
+
+  # Contar columnas experimentales totales
+  n_trat_cols    <- sum(cols %in% pal_trat)
+  n_factor_cols  <- sum(cols %in% pal_factor)
+  total_factores <- n_trat_cols + n_factor_cols
+
+  tiene_multifactor <- total_factores >= 2
 
   # Verificar presencia
   tiene_bloque   <- any(cols %in% pal_bloque)
@@ -13,7 +19,6 @@ inkagro_detect <- function(datos, verbose = TRUE) {
   tiene_fila     <- any(cols %in% pal_fila)
   tiene_columna  <- any(cols %in% pal_columna)
   tiene_ambiente <- any(cols %in% pal_ambiente)
-  tiene_year     <- any(cols %in% pal_year)
   tiene_alpha    <- any(cols %in% pal_alpha)
   tiene_strip    <- any(cols %in% pal_strip)
   tiene_tiempo   <- any(cols %in% pal_tiempo)
@@ -33,6 +38,8 @@ inkagro_detect <- function(datos, verbose = TRUE) {
     diseno <- "Cuadrado Latino"
   } else if (tiene_factor & tiene_ambiente) {
     diseno <- "Factorial con Ambientes"
+  } else if (tiene_multifactor & tiene_bloque) {
+    diseno <- "Factorial"
   } else if (tiene_factor) {
     diseno <- "Factorial"
   } else if (tiene_trat & tiene_bloque) {
