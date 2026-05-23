@@ -64,4 +64,8 @@ pal_tiempo <- c("time", "tempo", "dias", "days", "sampling",
 
 cols_excluir <- c("id", "fecha", "date", "parcela", "plot_id",
                   "observacion", "observation", "notes", "nota",
-                  "comentario", "comment")
+                  "comentario", "comment", "tecnico", "technician",
+                  "notas", "remarks", "operador", "operator",
+                  "responsable", "encargado", "evaluador",
+                  "nombre", "name", "codigo", "code",
+                  "sitio", "site", "tecnico", "notas")

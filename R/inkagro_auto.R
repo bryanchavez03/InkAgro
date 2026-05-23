@@ -5,23 +5,57 @@ inkagro_auto <- function(datos, respuesta, tratamiento,
 
   # 1. Leer archivo si es ruta
   if (is.character(datos)) {
-    extension <- tolower(tools::file_ext(datos))
+    datos_path <- datos
+    extension  <- tolower(tools::file_ext(datos_path))
+
     if (extension == "csv") {
-      datos <- tryCatch(read.csv(datos), error = function(e) read.csv2(datos))
+      datos <- tryCatch(
+        suppressMessages(read.csv(datos_path)),
+        error = function(e) suppressMessages(read.csv2(datos_path))
+      )
+
     } else if (extension %in% c("xlsx", "xls")) {
-      datos <- readxl::read_excel(datos)
+      datos <- suppressMessages(readxl::read_excel(datos_path))
+      # Si mas del 50% de nombres son genericos — releer con skip=1
+      nombres_act    <- names(datos)
+      prop_genericos <- mean(grepl("^\\.\\.\\.\\d+$", nombres_act))
+      if (prop_genericos > 0.5) {
+        datos <- suppressMessages(readxl::read_excel(datos_path, skip = 1))
+      }
+
     } else if (extension == "txt") {
-      datos <- read.delim(datos)
+      datos <- suppressMessages(read.delim(datos_path))
+
     } else if (extension == "rds") {
-      datos <- readRDS(datos)
+      datos <- readRDS(datos_path)
+
     } else if (extension == "sav") {
-      datos <- haven::read_sav(datos)
+      datos <- suppressMessages(haven::read_sav(datos_path))
+
     } else if (extension == "dta") {
-      datos <- haven::read_dta(datos)
+      datos <- suppressMessages(haven::read_dta(datos_path))
+
     } else {
       stop("Formato no soportado. Use: csv, xlsx, xls, txt, rds, sav, dta")
     }
+
+    # Detectar titulo en cualquier formato
+    nombres_act <- names(datos)
+    if (all(grepl("^V\\d+$", nombres_act))) {
+      primera_fila <- as.character(datos[1, ])
+      names(datos) <- primera_fila
+      datos <- datos[-1, ]
+    }
+
     datos <- as.data.frame(datos)
+
+    # Mostrar preview de datos cargados
+    cat("=========================================\n")
+    cat(" Datos cargados correctamente\n")
+    cat(" Filas:", nrow(datos), "| Columnas:", ncol(datos), "\n")
+    cat("=========================================\n\n")
+    print(head(datos, 6))
+    cat("\n")
   }
 
   # 2. Limpiar datos
