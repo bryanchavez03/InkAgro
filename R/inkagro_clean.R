@@ -13,13 +13,20 @@ inkagro_clean <- function(datos, verbose = TRUE) {
   }))
   # 4. Reportar valores faltantes
   na_reporte <- colSums(is.na(datos))
-  if (any(na_reporte > 0)) {
-    message("Valores faltantes detectados:")
-    print(na_reporte[na_reporte > 0])
-  }
+  attr(datos, "na_reporte") <- na_reporte
   # 5. Estandarizar valores de texto en minúscula
   datos <- as.data.frame(lapply(datos, function(x) {
     if (is.character(x)) gsub("\\s+", "_", tolower(trimws(x))) else x
+  }))
+  # 6. Convertir columnas numericas que llegaron como texto
+  datos <- as.data.frame(lapply(datos, function(x) {
+    if (is.character(x)) {
+      x_num <- suppressWarnings(as.numeric(x))
+      if (sum(is.na(x_num)) < sum(is.na(x)) + 0.5 * length(x)) {
+        return(x_num)
+      }
+    }
+    return(x)
   }))
 
   if (verbose) message("Limpieza completada.")

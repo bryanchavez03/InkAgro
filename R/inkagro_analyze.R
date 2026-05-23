@@ -9,7 +9,40 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
   # 1. Detectar diseno
   diseno <- inkagro_detect(datos, verbose = FALSE)
 
-  # 2. Convertir a factor
+  # 2. Detectar columnas automaticamente si no se declaran
+  cols <- tolower(names(datos))
+
+  if (is.null(fa)) {
+    factores <- cols[cols %in% pal_factor]
+    if (length(factores) >= 1) fa <- factores[1]
+    if (length(factores) >= 2) fb <- factores[2]
+  }
+
+  if (is.null(bloque)) {
+    col_bloque <- cols[cols %in% pal_bloque]
+    if (length(col_bloque) >= 1) bloque <- col_bloque[1]
+  }
+
+  if (is.null(rep)) {
+    col_rep <- cols[cols %in% pal_bloque]
+    if (length(col_rep) >= 1) rep <- col_rep[1]
+  }
+
+  if (is.null(iblock)) {
+    col_iblock <- cols[cols %in% pal_alpha]
+    if (length(col_iblock) >= 1) iblock <- col_iblock[1]
+  }
+
+  if (is.null(gen)) {
+    col_gen <- cols[cols %in% pal_trat]
+    if (length(col_gen) >= 1) gen <- col_gen[1]
+  }
+
+  if (is.null(env)) {
+    col_env <- cols[cols %in% pal_ambiente]
+    if (length(col_env) >= 1) env <- col_env[1]
+  }
+  # 3. Convertir a factor
   datos[[tratamiento]] <- as.factor(datos[[tratamiento]])
   if (!is.null(bloque))  datos[[bloque]]  <- as.factor(datos[[bloque]])
   if (!is.null(fa))      datos[[fa]]      <- as.factor(datos[[fa]])
@@ -19,7 +52,7 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
   if (!is.null(gen))     datos[[gen]]     <- as.factor(datos[[gen]])
   if (!is.null(env))     datos[[env]]     <- as.factor(datos[[env]])
 
-  # 3. Modelo segun diseno
+  # 4. Modelo segun diseno
   if (diseno == "DCA") {
     formula <- as.formula(paste(respuesta, "~", tratamiento))
     modelo  <- aov(formula, data = datos)
@@ -48,13 +81,15 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
     modelo  <- lme4::lmer(formula, data = datos)
 
   } else if (diseno == "Cuadrado Latino") {
-    formula <- as.formula(paste(respuesta, "~", tratamiento, "+ row + col"))
-    modelo  <- aov(formula, data = datos)
+    col_fila <- cols[cols %in% pal_fila][1]
+    col_col  <- cols[cols %in% pal_columna][1]
+    formula  <- as.formula(paste(respuesta, "~", tratamiento, "+", col_fila, "+", col_col))
+    modelo   <- aov(formula, data = datos)
   } else {
     stop("Diseño no soportado en esta versión.")
   }
 
-  # 4. Output limpio
+  # 5. Output limpio
   cat("\n")
   cat("=========================================\n")
   cat(" InkAgro v0.1.0\n")
@@ -69,11 +104,17 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
   cat("-----------------------------------------\n")
   cat(" Reporte de Calidad\n")
   cat("-----------------------------------------\n")
-  na_total <- sum(is.na(datos))
+  na_reporte <- attr(datos, "na_reporte")
+  if (is.null(na_reporte)) na_reporte <- colSums(is.na(datos))
+  na_total <- sum(na_reporte)
   if (na_total == 0) {
     cat(" Valores faltantes : Ninguno\n")
   } else {
-    cat(" Valores faltantes :", na_total, "\n")
+    cat(" Valores faltantes :", na_total, "en columnas:\n")
+    cols_na <- na_reporte[na_reporte > 0]
+    for (i in seq_along(cols_na)) {
+      cat("  -", names(cols_na)[i], ":", cols_na[i], "\n")
+    }
   }
   cat(" Variables         :", n_vars, "\n\n")
   cat("-----------------------------------------\n")
@@ -109,8 +150,12 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
       return(invisible(list(diseno = diseno, modelo = modelo,
                             tukey_a = tukey_a, tukey_b = tukey_b)))
     }
+  } else if (diseno == "Cuadrado Latino") {
+    col_fila <- cols[cols %in% pal_fila][1]
+    col_col  <- cols[cols %in% pal_columna][1]
+    formula  <- as.formula(paste(respuesta, "~", tratamiento, "+", col_fila, "+", col_col))
+    modelo   <- aov(formula, data = datos)
 
-  } else {
     em <- emmeans::emmeans(modelo, as.formula(paste("pairwise ~", tratamiento)))
     print(em)
     return(invisible(list(diseno = diseno, modelo = modelo, emmeans = em)))
