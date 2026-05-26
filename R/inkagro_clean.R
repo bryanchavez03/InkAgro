@@ -1,12 +1,13 @@
 inkagro_clean <- function(datos, verbose = TRUE,
-                          imputar = "media") {
+                          imputar = "media",
+                          sinonimos = NULL) {
+
   # 1. Verificar que los datos existen
   if (!is.data.frame(datos)) {
     stop("Los datos deben ser un data.frame")
   }
 
   # 2. Estandarizar nombres de columnas
-  nombres_originales <- names(datos)
   names(datos) <- tolower(trimws(names(datos)))
   names(datos) <- gsub(" ", "_", names(datos))
 
@@ -24,19 +25,15 @@ inkagro_clean <- function(datos, verbose = TRUE,
     return(x)
   }))
 
-  # 5. Reportar valores faltantes
-  na_reporte <- colSums(is.na(datos))
-  attr(datos, "na_reporte") <- na_reporte
-
-  # 6. Estandarizar valores de texto en minuscula
+  # 5. Estandarizar valores de texto en minuscula
   datos <- as.data.frame(lapply(datos, function(x) {
     if (is.character(x)) gsub("\\s+", "_", tolower(trimws(x))) else x
   }))
 
-  # 7. Convertir columnas numericas que llegaron como texto
+  # 6. Convertir columnas numericas que llegaron como texto
   datos <- as.data.frame(lapply(datos, function(x) {
     if (is.character(x)) {
-      x_num <- suppressWarnings(as.numeric(x))
+      x_num <- suppressWarnings(as.numeric(gsub("[^0-9\\.]", "", x)))
       if (mean(is.na(x_num)) < 0.5) {
         return(x_num)
       }
@@ -44,7 +41,7 @@ inkagro_clean <- function(datos, verbose = TRUE,
     return(x)
   }))
 
-  # 8. Estandarizar repeticiones
+  # 7. Estandarizar repeticiones
   datos <- as.data.frame(lapply(datos, function(x) {
     if (is.character(x)) {
       x_clean <- tolower(trimws(x))
@@ -57,8 +54,14 @@ inkagro_clean <- function(datos, verbose = TRUE,
     }
     return(x)
   }))
-
-  # 9. Tratar valores faltantes
+  # 7.5 Imputar bloques faltantes por moda antes de la imputacion general
+  for (col in names(datos)) {
+    if (col %in% pal_bloque && any(is.na(datos[[col]]))) {
+      moda_bloque <- names(sort(table(datos[[col]]), decreasing = TRUE))[1]
+      datos[[col]][is.na(datos[[col]])] <- moda_bloque
+    }
+  }
+  # 8. Tratar valores faltantes
   if (imputar != "ninguno") {
     datos <- as.data.frame(lapply(datos, function(x) {
       if (is.numeric(x) && any(is.na(x))) {
@@ -78,7 +81,7 @@ inkagro_clean <- function(datos, verbose = TRUE,
     }))
   }
 
-  # 10. Convertir numericos con pocos niveles a factor
+  # 9. Convertir numericos con pocos niveles a factor
   datos <- as.data.frame(lapply(datos, function(x) {
     if (is.numeric(x) && length(unique(na.omit(x))) <= 8) {
       return(as.factor(x))
@@ -86,17 +89,85 @@ inkagro_clean <- function(datos, verbose = TRUE,
     return(x)
   }))
 
-  # 11. Advertir niveles inconsistentes en factores
-  for (col in names(datos)) {
-    if (is.character(datos[[col]]) | is.factor(datos[[col]])) {
-      niveles <- unique(as.character(datos[[col]]))
-      niveles_lower <- tolower(niveles)
-      if (length(niveles) != length(unique(niveles_lower))) {
-        message("ADVERTENCIA: Niveles posiblemente inconsistentes en '",
-                col, "' — revise mayusculas/minusculas")
+  # 10. Agrupar niveles similares automaticamente
+  datos <- as.data.frame(lapply(datos, function(x) {
+    if (is.character(x) | is.factor(x)) {
+      x <- as.character(x)
+      niveles <- unique(na.omit(x))
+
+      # Mapear abreviaturas de una sola letra
+      niveles_freq <- sort(table(x), decreasing = TRUE)
+      for (niv in niveles) {
+        if (nchar(niv) == 1) {
+          candidatos <- names(niveles_freq)[startsWith(names(niveles_freq), niv)]
+          candidatos <- candidatos[nchar(candidatos) > 1]
+          if (length(candidatos) > 0) {
+            x[x == niv] <- candidatos[1]
+          }
+        }
+      }
+
+      # Actualizar niveles
+      niveles <- unique(na.omit(x))
+
+      # Agrupar por distancia de cadenas
+      if (length(niveles) > 1 && length(niveles) <= 30) {
+        for (i in seq_along(niveles)) {
+          for (j in seq_along(niveles)) {
+            if (i != j && niveles[i] %in% x && niveles[j] %in% x) {
+              dist <- stringdist::stringdist(niveles[i], niveles[j],
+                                             method = "jw")
+              if (dist < 0.25) {
+                freq_i <- sum(x == niveles[i], na.rm = TRUE)
+                freq_j <- sum(x == niveles[j], na.rm = TRUE)
+                if (freq_i >= freq_j) {
+                  x[x == niveles[j]] <- niveles[i]
+                } else {
+                  x[x == niveles[i]] <- niveles[j]
+                }
+              }
+            }
+          }
+        }
+      }
+      return(as.factor(x))
+    }
+    return(x)
+  }))
+
+  # 10.5 Eliminar valores numericos infiltrados en columnas de factor
+  datos <- as.data.frame(lapply(datos, function(x) {
+    if (is.factor(x)) {
+      niveles <- levels(x)
+      niveles_num <- suppressWarnings(as.numeric(as.character(niveles)))
+      niveles_corruptos <- niveles[!is.na(niveles_num) &
+                                     nchar(as.character(niveles)) > 1]
+      if (length(niveles_corruptos) > 0) {
+        x[x %in% niveles_corruptos] <- NA
+        x <- droplevels(x)
+      }
+    }
+    return(x)
+  }))
+
+  # 11. Aplicar sinonimos definidos por el usuario
+  if (!is.null(sinonimos)) {
+    for (col in names(sinonimos)) {
+      if (col %in% names(datos)) {
+        mapa <- sinonimos[[col]]
+        datos[[col]] <- as.character(datos[[col]])
+        for (original in names(mapa)) {
+          datos[[col]][datos[[col]] == original] <- mapa[[original]]
+        }
+        datos[[col]] <- as.factor(datos[[col]])
+        message("Sinonimos aplicados en columna: ", col)
       }
     }
   }
+
+  # 12. Recalcular NA despues de imputacion
+  na_reporte <- colSums(is.na(datos))
+  attr(datos, "na_reporte") <- na_reporte
 
   if (verbose) {
     na_tratados <- sum(is.na(datos))

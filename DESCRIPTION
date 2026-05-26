@@ -16,6 +16,7 @@ Imports:
     haven,
     lme4,
     readxl,
+    stringdist,
     tools
 URL: https://github.com/bryanchavez03/InkAgro
 BugReports: https://github.com/bryanchavez03/InkAgro/issues

@@ -1,7 +1,8 @@
 inkagro_auto <- function(datos, respuesta, tratamiento,
                          bloque = NULL, fa = NULL, fb = NULL,
                          rep = NULL, iblock = NULL,
-                         gen = NULL, env = NULL) {
+                         gen = NULL, env = NULL,
+                         sinonimos = NULL) {
 
   # 1. Leer archivo si es ruta
   if (is.character(datos)) {
@@ -16,7 +17,6 @@ inkagro_auto <- function(datos, respuesta, tratamiento,
 
     } else if (extension %in% c("xlsx", "xls")) {
       datos <- suppressMessages(readxl::read_excel(datos_path))
-      # Si mas del 50% de nombres son genericos — releer con skip=1
       nombres_act    <- names(datos)
       prop_genericos <- mean(grepl("^\\.\\.\\.\\d+$", nombres_act))
       if (prop_genericos > 0.5) {
@@ -54,12 +54,12 @@ inkagro_auto <- function(datos, respuesta, tratamiento,
     cat(" Datos cargados correctamente\n")
     cat(" Filas:", nrow(datos), "| Columnas:", ncol(datos), "\n")
     cat("=========================================\n\n")
-    print(head(datos, 6))
+    print(head(datos, 3))
     cat("\n")
   }
 
   # 2. Limpiar datos
-  datos <- inkagro_clean(datos, verbose = FALSE)
+  datos <- inkagro_clean(datos, verbose = FALSE, sinonimos = sinonimos)
 
   # 3. Detectar diseno
   diseno <- inkagro_detect(datos, verbose = FALSE)

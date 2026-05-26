@@ -4,16 +4,12 @@ inkagro_supuestos <- function(modelo, datos, tratamiento) {
   cat(" Verificacion de Supuestos\n")
   cat("-----------------------------------------\n\n")
 
-  # Detectar tipo de modelo
   es_lmer <- inherits(modelo, "lmerMod")
 
   if (es_lmer) {
-
-    # Modelos mixtos — solo normalidad
     cat(" Modelo mixto (lmer) detectado\n")
     cat(" Supuesto verificado: normalidad de residuos\n")
     cat(" Para verificacion completa use DHARMa\n\n")
-
     residuos <- residuals(modelo)
     shapiro  <- shapiro.test(residuos)
     cat(" Shapiro-Wilk: W =", round(shapiro$statistic, 4),
@@ -23,30 +19,40 @@ inkagro_supuestos <- function(modelo, datos, tratamiento) {
     } else {
       cat(" ADVERTENCIA: Normalidad rechazada (p < 0.05)\n\n")
     }
-
     return(invisible(list(shapiro = shapiro)))
 
   } else {
 
-    # Modelos aov — verificacion completa
     residuos <- residuals(modelo)
 
-    # 1. Normalidad — Shapiro-Wilk
+    # 1. Normalidad
     cat(" 1. Normalidad de residuos (Shapiro-Wilk)\n")
-    shapiro <- shapiro.test(residuos)
-    cat("    W =", round(shapiro$statistic, 4),
-        "| p =", round(shapiro$p.value, 4), "\n")
-    if (shapiro$p.value >= 0.05) {
-      cat("    Normalidad aceptada (p >= 0.05)\n\n")
+    shapiro <- NULL
+    if (length(residuos) > 200) {
+      cat("    Muestra grande (n > 200) — Shapiro-Wilk es muy sensible\n")
+      cat("    Interprete el QQ-plot visualmente\n\n")
     } else {
-      cat("    ADVERTENCIA: Normalidad rechazada (p < 0.05)\n")
-      cat("    Considere transformacion logaritmica o prueba no parametrica\n\n")
+      shapiro <- shapiro.test(residuos)
+      cat("    W =", round(shapiro$statistic, 4),
+          "| p =", round(shapiro$p.value, 4), "\n")
+      if (shapiro$p.value >= 0.05) {
+        cat("    Normalidad aceptada (p >= 0.05)\n\n")
+      } else {
+        cat("    ADVERTENCIA: Normalidad rechazada (p < 0.05)\n")
+        cat("    Considere transformacion logaritmica\n\n")
+      }
     }
 
-    # 2. Homogeneidad — Bartlett y Levene
+    # 2. Homogeneidad
     cat(" 2. Homogeneidad de varianzas\n")
+
+    datos_modelo <- tryCatch(model.frame(modelo), error = function(e) datos)
+    trat_factor  <- droplevels(as.factor(datos_modelo[[tratamiento]]))
+    res_clean    <- residuos
+
+    bartlett <- NULL
     bartlett <- tryCatch({
-      bt <- bartlett.test(residuos ~ datos[[tratamiento]])
+      bt <- bartlett.test(res_clean ~ trat_factor)
       cat("    Bartlett: K2 =", round(bt$statistic, 4),
           "| p =", round(bt$p.value, 4), "\n")
       if (bt$p.value >= 0.05) {
@@ -55,10 +61,14 @@ inkagro_supuestos <- function(modelo, datos, tratamiento) {
         cat("    ADVERTENCIA: Varianzas heterogeneas (p < 0.05)\n")
       }
       bt
-    }, error = function(e) NULL)
+    }, error = function(e) {
+      cat("    No se pudo calcular Bartlett\n")
+      NULL
+    })
 
+    levene <- NULL
     levene <- tryCatch({
-      lv <- car::leveneTest(residuos ~ as.factor(datos[[tratamiento]]))
+      lv <- car::leveneTest(res_clean ~ trat_factor)
       cat("    Levene:   F =", round(lv$`F value`[1], 4),
           "| p =", round(lv$`Pr(>F)`[1], 4), "\n")
       if (lv$`Pr(>F)`[1] >= 0.05) {
@@ -67,9 +77,12 @@ inkagro_supuestos <- function(modelo, datos, tratamiento) {
         cat("    ADVERTENCIA: Varianzas heterogeneas (p < 0.05)\n\n")
       }
       lv
-    }, error = function(e) NULL)
+    }, error = function(e) {
+      cat("    No se pudo calcular Levene\n\n")
+      NULL
+    })
 
-    # 3. Outliers — residuos studentizados
+    # 3. Outliers
     cat(" 3. Deteccion de outliers\n")
     res_std  <- tryCatch(rstandard(modelo), error = function(e) NULL)
     outliers <- NULL
@@ -84,7 +97,7 @@ inkagro_supuestos <- function(modelo, datos, tratamiento) {
       }
     }
 
-    # 4. Balance del diseno
+    # 4. Balance
     cat(" 4. Balance del diseno\n")
     tabla <- table(datos[[tratamiento]])
     if (length(unique(tabla)) == 1) {
@@ -105,11 +118,3 @@ inkagro_supuestos <- function(modelo, datos, tratamiento) {
     )))
   }
 }
-
-
-
-
-
-
-
-

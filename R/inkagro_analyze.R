@@ -59,6 +59,17 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
   if (!is.null(gen))     datos[[gen]]     <- as.factor(datos[[gen]])
   if (!is.null(env))     datos[[env]]     <- as.factor(datos[[env]])
 
+  # Remover outliers extremos antes del modelo
+  q1  <- quantile(datos[[respuesta]], 0.25, na.rm = TRUE)
+  q3  <- quantile(datos[[respuesta]], 0.75, na.rm = TRUE)
+  iqr <- q3 - q1
+  datos <- datos[
+    datos[[respuesta]] >= (q1 - 3 * iqr) &
+      datos[[respuesta]] <= (q3 + 3 * iqr), ]
+
+  # Recalcular na_reporte sobre datos reales
+  na_reporte <- colSums(is.na(datos))
+
   # 5. Modelo segun diseno
   if (diseno == "DCA") {
     formula <- as.formula(paste(respuesta, "~", tratamiento))
@@ -119,8 +130,7 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
   cat("-----------------------------------------\n")
   cat(" Reporte de Calidad\n")
   cat("-----------------------------------------\n")
-  na_reporte <- attr(datos, "na_reporte")
-  if (is.null(na_reporte)) na_reporte <- colSums(is.na(datos))
+  na_reporte <- colSums(is.na(datos))
   na_total <- sum(na_reporte)
   if (na_total == 0) {
     cat(" Valores faltantes : Ninguno\n")
