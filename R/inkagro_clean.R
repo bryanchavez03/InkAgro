@@ -33,9 +33,18 @@ inkagro_clean <- function(datos, verbose = TRUE,
   # 6. Convertir columnas numericas que llegaron como texto
   datos <- as.data.frame(lapply(datos, function(x) {
     if (is.character(x)) {
-      x_num <- suppressWarnings(as.numeric(gsub("[^0-9\\.]", "", x)))
+      # Primero intentar conversion directa
+      x_num <- suppressWarnings(as.numeric(x))
       if (mean(is.na(x_num)) < 0.5) {
         return(x_num)
+      }
+      # Si falla, intentar extrayendo numero de texto con unidades (ej: "11.52 u")
+      x_num2 <- suppressWarnings(as.numeric(gsub("[^0-9\\.]", "", x)))
+      # Solo aplicar si los valores originales tienen patron numero+letra
+      patron_num_letra <- grepl("^[0-9\\.]+\\s*[a-zA-Z]+$", x)
+      if (mean(patron_num_letra, na.rm = TRUE) > 0.3 &&
+          mean(is.na(x_num2)) < 0.5) {
+        return(x_num2)
       }
     }
     return(x)
@@ -54,13 +63,15 @@ inkagro_clean <- function(datos, verbose = TRUE,
     }
     return(x)
   }))
-  # 7.5 Imputar bloques faltantes por moda antes de la imputacion general
+
+  # 7.5 Imputar bloques faltantes por moda
   for (col in names(datos)) {
     if (col %in% pal_bloque && any(is.na(datos[[col]]))) {
       moda_bloque <- names(sort(table(datos[[col]]), decreasing = TRUE))[1]
       datos[[col]][is.na(datos[[col]])] <- moda_bloque
     }
   }
+
   # 8. Tratar valores faltantes
   if (imputar != "ninguno") {
     datos <- as.data.frame(lapply(datos, function(x) {
@@ -89,10 +100,9 @@ inkagro_clean <- function(datos, verbose = TRUE,
     return(x)
   }))
 
-  # 10. Agrupar niveles similares automaticamente
+  # 10. Agrupar niveles similares automaticamente — solo texto
   datos <- as.data.frame(lapply(datos, function(x) {
-    if (is.character(x) | is.factor(x)) {
-      x <- as.character(x)
+    if (is.character(x)) {
       niveles <- unique(na.omit(x))
 
       # Mapear abreviaturas de una sola letra
@@ -135,13 +145,15 @@ inkagro_clean <- function(datos, verbose = TRUE,
     return(x)
   }))
 
-  # 10.5 Eliminar valores numericos infiltrados en columnas de factor
+  # 10.5 Eliminar decimales largos infiltrados en columnas de factor
   datos <- as.data.frame(lapply(datos, function(x) {
     if (is.factor(x)) {
       niveles <- levels(x)
       niveles_num <- suppressWarnings(as.numeric(as.character(niveles)))
+      # Solo eliminar decimales con mas de 3 caracteres — no enteros validos
       niveles_corruptos <- niveles[!is.na(niveles_num) &
-                                     nchar(as.character(niveles)) > 1]
+                                     grepl("\\.", as.character(niveles)) &
+                                     nchar(as.character(niveles)) > 3]
       if (length(niveles_corruptos) > 0) {
         x[x %in% niveles_corruptos] <- NA
         x <- droplevels(x)
