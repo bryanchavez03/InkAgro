@@ -33,14 +33,11 @@ inkagro_clean <- function(datos, verbose = TRUE,
   # 6. Convertir columnas numericas que llegaron como texto
   datos <- as.data.frame(lapply(datos, function(x) {
     if (is.character(x)) {
-      # Primero intentar conversion directa
       x_num <- suppressWarnings(as.numeric(x))
       if (mean(is.na(x_num)) < 0.5) {
         return(x_num)
       }
-      # Si falla, intentar extrayendo numero de texto con unidades (ej: "11.52 u")
       x_num2 <- suppressWarnings(as.numeric(gsub("[^0-9\\.]", "", x)))
-      # Solo aplicar si los valores originales tienen patron numero+letra
       patron_num_letra <- grepl("^[0-9\\.]+\\s*[a-zA-Z]+$", x)
       if (mean(patron_num_letra, na.rm = TRUE) > 0.3 &&
           mean(is.na(x_num2)) < 0.5) {
@@ -120,6 +117,32 @@ inkagro_clean <- function(datos, verbose = TRUE,
       # Actualizar niveles
       niveles <- unique(na.omit(x))
 
+      # Normalizar prefijos de tratamiento solo si valores son cortos
+      if (all(nchar(niveles) <= 8, na.rm = TRUE)) {
+        x <- gsub("^trat_", "t", x)
+        x <- gsub("^trat", "t", x)
+        x <- gsub("^t-", "t", x)
+        niveles <- unique(na.omit(x))
+      }
+
+      # Normalizar prefijo t de tratamientos numericos (t1->1, t2->2)
+      x_sin_t <- gsub("^t(\\d+)$", "\\1", x)
+      if (length(unique(na.omit(x_sin_t))) < length(unique(na.omit(x)))) {
+        x <- x_sin_t
+        niveles <- unique(na.omit(x))
+      }
+
+      # Fusionar duplicados creados por normalizacion
+      niveles_freq <- sort(table(x), decreasing = TRUE)
+      for (niv in unique(na.omit(x))) {
+        todos <- names(niveles_freq)[names(niveles_freq) == niv]
+        if (length(todos) > 0) {
+          mas_frecuente <- names(niveles_freq)[1]
+          x[x == niv] <- niv
+        }
+      }
+      niveles <- unique(na.omit(x))
+
       # Agrupar por distancia de cadenas
       if (length(niveles) > 1 && length(niveles) <= 30) {
         for (i in seq_along(niveles)) {
@@ -150,7 +173,6 @@ inkagro_clean <- function(datos, verbose = TRUE,
     if (is.factor(x)) {
       niveles <- levels(x)
       niveles_num <- suppressWarnings(as.numeric(as.character(niveles)))
-      # Solo eliminar decimales con mas de 3 caracteres — no enteros validos
       niveles_corruptos <- niveles[!is.na(niveles_num) &
                                      grepl("\\.", as.character(niveles)) &
                                      nchar(as.character(niveles)) > 3]
