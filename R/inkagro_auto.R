@@ -19,8 +19,21 @@ inkagro_auto <- function(datos, respuesta, tratamiento,
       datos <- suppressMessages(readxl::read_excel(datos_path))
       nombres_act    <- names(datos)
       prop_genericos <- mean(grepl("^\\.\\.\\.\\d+$", nombres_act))
+
       if (prop_genericos > 0.5) {
-        datos <- suppressMessages(readxl::read_excel(datos_path, skip = 1))
+        # Buscar la fila con los nombres reales
+        skip_n <- 1
+        for (i in 1:5) {
+          datos_temp <- suppressMessages(
+            readxl::read_excel(datos_path, skip = i))
+          nombres_temp <- names(datos_temp)
+          prop_gen <- mean(grepl("^\\.\\.\\.\\d+$", nombres_temp))
+          if (prop_gen <= 0.3) {
+            skip_n <- i
+            break
+          }
+        }
+        datos <- suppressMessages(readxl::read_excel(datos_path, skip = skip_n))
       }
 
     } else if (extension == "txt") {

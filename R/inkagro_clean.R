@@ -69,6 +69,19 @@ inkagro_clean <- function(datos, verbose = TRUE,
     }
   }
 
+  # 7.6 Normalizar bloques y factores extrayendo numero final
+  datos <- as.data.frame(lapply(datos, function(x) {
+    if (is.character(x)) {
+      x_norm <- gsub("^[a-z_]+\\s*(\\d+)$", "\\1", x)
+      x_num_check <- suppressWarnings(as.numeric(x_norm))
+      if (mean(!is.na(x_num_check)) > 0.7 &&
+          length(unique(x_norm)) < length(unique(x))) {
+        return(x_norm)
+      }
+    }
+    return(x)
+  }))
+
   # 8. Tratar valores faltantes
   if (imputar != "ninguno") {
     datos <- as.data.frame(lapply(datos, function(x) {
@@ -117,31 +130,29 @@ inkagro_clean <- function(datos, verbose = TRUE,
       # Actualizar niveles
       niveles <- unique(na.omit(x))
 
-      # Normalizar prefijos de tratamiento solo si valores son cortos
+      # Normalizar prefijos de nivel de factor
       if (all(nchar(niveles) <= 8, na.rm = TRUE)) {
-        x <- gsub("^trat_", "t", x)
-        x <- gsub("^trat", "t", x)
-        x <- gsub("^t-", "t", x)
+        x <- gsub("^nivel(\\d+)$", "\\1", x)
+        x <- gsub("^niv(\\d+)$",   "\\1", x)
+        x <- gsub("^n-(\\d+)$",    "\\1", x)
+        x <- gsub("^n(\\d+)$",     "\\1", x)
         niveles <- unique(na.omit(x))
       }
 
-      # Normalizar prefijo t de tratamientos numericos (t1->1, t2->2)
+      # Normalizar prefijos de tratamiento
+      if (all(nchar(niveles) <= 8, na.rm = TRUE)) {
+        x <- gsub("^trat_", "t", x)
+        x <- gsub("^trat",  "t", x)
+        x <- gsub("^t-",    "t", x)
+        niveles <- unique(na.omit(x))
+      }
+
+      # Normalizar prefijo t de tratamientos numericos
       x_sin_t <- gsub("^t(\\d+)$", "\\1", x)
       if (length(unique(na.omit(x_sin_t))) < length(unique(na.omit(x)))) {
         x <- x_sin_t
         niveles <- unique(na.omit(x))
       }
-
-      # Fusionar duplicados creados por normalizacion
-      niveles_freq <- sort(table(x), decreasing = TRUE)
-      for (niv in unique(na.omit(x))) {
-        todos <- names(niveles_freq)[names(niveles_freq) == niv]
-        if (length(todos) > 0) {
-          mas_frecuente <- names(niveles_freq)[1]
-          x[x == niv] <- niv
-        }
-      }
-      niveles <- unique(na.omit(x))
 
       # Agrupar por distancia de cadenas
       if (length(niveles) > 1 && length(niveles) <= 30) {

@@ -89,6 +89,16 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
     }
     modelo <- aov(formula, data = datos)
 
+  } else if (diseno == "Factorial con Ambientes") {
+    if (!is.null(bloque)) {
+      formula <- as.formula(paste(respuesta, "~", bloque, "+",
+                                  tratamiento, "*", env))
+    } else {
+      formula <- as.formula(paste(respuesta, "~",
+                                  tratamiento, "*", env))
+    }
+    modelo <- aov(formula, data = datos)
+
   } else if (diseno == "Parcelas Divididas") {
     formula <- as.formula(paste(respuesta, "~", fa, "*", fb,
                                 "+ Error(", bloque, "/", fa, ")"))
@@ -126,12 +136,13 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
   cat(" Respuesta     :", respuesta, "\n")
   cat(" Tratamiento   :", tratamiento, "\n")
   if (!is.null(bloque)) cat(" Bloque        :", bloque, "\n")
+  if (!is.null(env))    cat(" Ambiente      :", env, "\n")
   cat("\n")
   cat("-----------------------------------------\n")
   cat(" Reporte de Calidad\n")
   cat("-----------------------------------------\n")
   na_reporte <- colSums(is.na(datos))
-  na_total <- sum(na_reporte)
+  na_total   <- sum(na_reporte)
   if (na_total == 0) {
     cat(" Valores faltantes : Ninguno\n")
   } else {
@@ -162,7 +173,9 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
 
   } else if (diseno == "Factorial") {
     if (!is.null(fa) & !is.null(fb)) {
-      p_triple <- summary(modelo)[[1]][paste0(tratamiento, ":", fa, ":", fb), "Pr(>F)"]
+      p_triple <- tryCatch(
+        summary(modelo)[[1]][paste0(tratamiento, ":", fa, ":", fb), "Pr(>F)"],
+        error = function(e) NA)
       if (!is.na(p_triple) && p_triple < 0.05) {
         cat(" Interaccion triple significativa (p < 0.05)\n")
         cat(" Usando efectos simples con emmeans\n\n")
@@ -184,7 +197,9 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
                               tukey_c = tukey_c)))
       }
     } else {
-      p_interaccion <- summary(modelo)[[1]][paste0(fa, ":", fb), "Pr(>F)"]
+      p_interaccion <- tryCatch(
+        summary(modelo)[[1]][paste0(fa, ":", fb), "Pr(>F)"],
+        error = function(e) NA)
       if (!is.na(p_interaccion) && p_interaccion < 0.05) {
         cat(" Interaccion significativa (p < 0.05)\n")
         cat(" Usando efectos simples con emmeans\n\n")
@@ -203,6 +218,20 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
                               tukey_a = tukey_a, tukey_b = tukey_b)))
       }
     }
+
+  } else if (diseno == "Factorial con Ambientes") {
+    cat(" Comparando tratamiento por ambiente\n\n")
+    tukey_trat <- tryCatch(
+      agricolae::HSD.test(modelo, tratamiento, group = TRUE),
+      error = function(e) NULL)
+    tukey_env <- tryCatch(
+      agricolae::HSD.test(modelo, env, group = TRUE),
+      error = function(e) NULL)
+    if (!is.null(tukey_trat)) print(tukey_trat$groups)
+    if (!is.null(tukey_env))  print(tukey_env$groups)
+    return(invisible(list(diseno = diseno, modelo = modelo,
+                          tukey_trat = tukey_trat,
+                          tukey_env  = tukey_env)))
 
   } else if (diseno == "Cuadrado Latino") {
     tukey <- agricolae::HSD.test(modelo, tratamiento, group = TRUE)
