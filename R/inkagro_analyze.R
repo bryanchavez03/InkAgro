@@ -220,18 +220,34 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
     }
 
   } else if (diseno == "Factorial con Ambientes") {
-    cat(" Comparando tratamiento por ambiente\n\n")
-    tukey_trat <- tryCatch(
-      agricolae::HSD.test(modelo, tratamiento, group = TRUE),
-      error = function(e) NULL)
-    tukey_env <- tryCatch(
-      agricolae::HSD.test(modelo, env, group = TRUE),
-      error = function(e) NULL)
-    if (!is.null(tukey_trat)) print(tukey_trat$groups)
-    if (!is.null(tukey_env))  print(tukey_env$groups)
-    return(invisible(list(diseno = diseno, modelo = modelo,
-                          tukey_trat = tukey_trat,
-                          tukey_env  = tukey_env)))
+
+    # Revisar si interaccion tratamiento x ambiente es significativa
+    p_interaccion <- tryCatch(
+      summary(modelo)[[1]][paste0(tratamiento, ":", env), "Pr(>F)"],
+      error = function(e) NA)
+
+    if (!is.na(p_interaccion) && p_interaccion < 0.05) {
+      cat(" Interaccion tratamiento x ambiente significativa (p < 0.05)\n")
+      cat(" Comparando tratamiento dentro de cada ambiente\n\n")
+      em <- emmeans::emmeans(modelo,
+                             as.formula(paste("pairwise ~", tratamiento, "|", env)))
+      print(em)
+      return(invisible(list(diseno = diseno, modelo = modelo, emmeans = em)))
+    } else {
+      cat(" Sin interaccion significativa\n")
+      cat(" Comparando factores principales\n\n")
+      tukey_trat <- tryCatch(
+        agricolae::HSD.test(modelo, tratamiento, group = TRUE),
+        error = function(e) NULL)
+      tukey_env <- tryCatch(
+        agricolae::HSD.test(modelo, env, group = TRUE),
+        error = function(e) NULL)
+      if (!is.null(tukey_trat)) print(tukey_trat$groups)
+      if (!is.null(tukey_env))  print(tukey_env$groups)
+      return(invisible(list(diseno = diseno, modelo = modelo,
+                            tukey_trat = tukey_trat,
+                            tukey_env  = tukey_env)))
+    }
 
   } else if (diseno == "Cuadrado Latino") {
     tukey <- agricolae::HSD.test(modelo, tratamiento, group = TRUE)

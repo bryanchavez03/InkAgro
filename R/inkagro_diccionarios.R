@@ -68,4 +68,6 @@ cols_excluir <- c("id", "fecha", "date", "parcela", "plot_id",
                   "notas", "remarks", "operador", "operator",
                   "responsable", "encargado", "evaluador",
                   "nombre", "name", "codigo", "code",
-                  "sitio", "site", "tecnico", "notas")
+                  "locality", "lugar", "municipio", "estado",
+                  "temporada", "season_name", "campaign_name")
+
