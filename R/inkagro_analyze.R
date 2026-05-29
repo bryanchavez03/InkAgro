@@ -148,18 +148,23 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
   if (na_total == 0) {
     cli::cli_alert_success("Sin valores faltantes")
   } else {
-    cli::cli_alert_danger("Valores faltantes: {na_total} ({round(na_total/n_total*100,1)}%)")
     cols_na <- na_reporte[na_reporte > 0]
     for (i in seq_along(cols_na)) {
       pct <- round(cols_na[i] / nrow(datos) * 100, 1)
-      cli::cli_text("  • {names(cols_na)[i]}: {cols_na[i]} ({pct}%)")
+      cli::cli_alert_danger("{names(cols_na)[i]}: {cols_na[i]} NA ({pct}% de observaciones)")
     }
   }
   cli::cli_text("  Variables: {n_vars}")
 
   # 8. Tabla ANOVA
   cli::cli_h2("Tabla ANOVA")
-  anova_tab <- as.data.frame(summary(modelo)[[1]])
+  anova_sum <- summary(modelo)
+  anova_tab <- as.data.frame(anova_sum[[1]])
+  anova_tab[["F value"]] <- round(anova_tab[["F value"]], 2)
+  anova_tab[["Pr(>F)"]]  <- format.pval(anova_tab[["Pr(>F)"]],
+                                        digits = 3, eps = 0.001)
+  anova_tab[["Sum Sq"]]  <- round(anova_tab[["Sum Sq"]], 2)
+  anova_tab[["Mean Sq"]] <- round(anova_tab[["Mean Sq"]], 2)
   print(anova_tab)
 
   # 9. Supuestos
