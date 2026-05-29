@@ -12,6 +12,7 @@ RoxygenNote: 7.0.0
 Imports: 
     agricolae,
     car,
+    cli,
     emmeans,
     haven,
     lme4,

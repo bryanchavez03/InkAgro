@@ -10,17 +10,17 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
   diseno <- inkagro_detect(datos, verbose = FALSE)
 
   # 2. Convertir parametros a minuscula
-  respuesta   <- tolower(respuesta)
-  tratamiento <- tolower(tratamiento)
-  if (!is.null(bloque))  bloque  <- tolower(bloque)
-  if (!is.null(fa))      fa      <- tolower(fa)
-  if (!is.null(fb))      fb      <- tolower(fb)
-  if (!is.null(rep))     rep     <- tolower(rep)
-  if (!is.null(iblock))  iblock  <- tolower(iblock)
-  if (!is.null(gen))     gen     <- tolower(gen)
-  if (!is.null(env))     env     <- tolower(env)
+  respuesta   <- tolower(trimws(respuesta))
+  tratamiento <- tolower(trimws(tratamiento))
+  if (!is.null(bloque))  bloque  <- tolower(trimws(bloque))
+  if (!is.null(fa))      fa      <- tolower(trimws(fa))
+  if (!is.null(fb))      fb      <- tolower(trimws(fb))
+  if (!is.null(rep))     rep     <- tolower(trimws(rep))
+  if (!is.null(iblock))  iblock  <- tolower(trimws(iblock))
+  if (!is.null(gen))     gen     <- tolower(trimws(gen))
+  if (!is.null(env))     env     <- tolower(trimws(env))
 
-  # 3. Detectar columnas automaticamente si no se declaran
+  # 3. Detectar columnas automaticamente
   cols <- tolower(names(datos))
 
   if (is.null(fa)) {
@@ -49,26 +49,23 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
     if (length(col_env) >= 1) env <- col_env[1]
   }
 
-  # 4. Convertir a factor
-  datos[[tratamiento]] <- as.factor(datos[[tratamiento]])
-  if (!is.null(bloque))  datos[[bloque]]  <- as.factor(datos[[bloque]])
-  if (!is.null(fa))      datos[[fa]]      <- as.factor(datos[[fa]])
-  if (!is.null(fb))      datos[[fb]]      <- as.factor(datos[[fb]])
-  if (!is.null(rep))     datos[[rep]]     <- as.factor(datos[[rep]])
-  if (!is.null(iblock))  datos[[iblock]]  <- as.factor(datos[[iblock]])
-  if (!is.null(gen))     datos[[gen]]     <- as.factor(datos[[gen]])
-  if (!is.null(env))     datos[[env]]     <- as.factor(datos[[env]])
+  # 4. Convertir a factor con trimws
+  datos[[tratamiento]] <- as.factor(trimws(as.character(datos[[tratamiento]])))
+  if (!is.null(bloque))  datos[[bloque]]  <- as.factor(trimws(as.character(datos[[bloque]])))
+  if (!is.null(fa))      datos[[fa]]      <- as.factor(trimws(as.character(datos[[fa]])))
+  if (!is.null(fb))      datos[[fb]]      <- as.factor(trimws(as.character(datos[[fb]])))
+  if (!is.null(rep))     datos[[rep]]     <- as.factor(trimws(as.character(datos[[rep]])))
+  if (!is.null(iblock))  datos[[iblock]]  <- as.factor(trimws(as.character(datos[[iblock]])))
+  if (!is.null(gen))     datos[[gen]]     <- as.factor(trimws(as.character(datos[[gen]])))
+  if (!is.null(env))     datos[[env]]     <- as.factor(trimws(as.character(datos[[env]])))
 
-  # Remover outliers extremos antes del modelo
+  # Remover outliers extremos
   q1  <- quantile(datos[[respuesta]], 0.25, na.rm = TRUE)
   q3  <- quantile(datos[[respuesta]], 0.75, na.rm = TRUE)
   iqr <- q3 - q1
   datos <- datos[
     datos[[respuesta]] >= (q1 - 3 * iqr) &
       datos[[respuesta]] <= (q3 + 3 * iqr), ]
-
-  # Recalcular na_reporte sobre datos reales
-  na_reporte <- colSums(is.na(datos))
 
   # 5. Modelo segun diseno
   if (diseno == "DCA") {
@@ -125,46 +122,51 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
     stop("Diseno no soportado en esta version.")
   }
 
-  # 6. Output limpio
-  cat("\n")
-  cat("=========================================\n")
-  cat(" InkAgro v0.1.0\n")
-  cat(" Analisis de Datos Agricolas\n")
-  cat("=========================================\n\n")
-  cat(" Datos         :", n_obs, "observaciones x", n_vars, "variables\n")
-  cat(" Diseno        :", diseno, "\n")
-  cat(" Respuesta     :", respuesta, "\n")
-  cat(" Tratamiento   :", tratamiento, "\n")
-  if (!is.null(bloque)) cat(" Bloque        :", bloque, "\n")
-  if (!is.null(env))    cat(" Ambiente      :", env, "\n")
-  cat("\n")
-  cat("-----------------------------------------\n")
-  cat(" Reporte de Calidad\n")
-  cat("-----------------------------------------\n")
+  # 6. Output con cli
+  cli::cli_h1("InkAgro v0.1.0 — Analisis de Datos Agricolas")
+
+  n_trat   <- nlevels(as.factor(datos[[tratamiento]]))
+  n_bloque <- if (!is.null(bloque)) nlevels(as.factor(datos[[bloque]])) else NULL
+
+  cli::cli_dl(c(
+    "Datos"       = "{n_obs} observaciones x {n_vars} variables",
+    "Diseno"      = diseno,
+    "Respuesta"   = respuesta,
+    "Tratamiento" = "{tratamiento} ({n_trat} niveles)"
+  ))
+  if (!is.null(bloque))
+    cli::cli_text("  Bloque: {bloque} ({n_bloque} bloques)")
+  if (!is.null(env))
+    cli::cli_text("  Ambiente: {env}")
+
+  # 7. Reporte de calidad
+  cli::cli_h2("Reporte de Calidad")
   na_reporte <- colSums(is.na(datos))
   na_total   <- sum(na_reporte)
+  n_total    <- nrow(datos) * ncol(datos)
+
   if (na_total == 0) {
-    cat(" Valores faltantes : Ninguno\n")
+    cli::cli_alert_success("Sin valores faltantes")
   } else {
-    cat(" Valores faltantes :", na_total, "en columnas:\n")
+    cli::cli_alert_danger("Valores faltantes: {na_total} ({round(na_total/n_total*100,1)}%)")
     cols_na <- na_reporte[na_reporte > 0]
     for (i in seq_along(cols_na)) {
-      cat("  -", names(cols_na)[i], ":", cols_na[i], "\n")
+      pct <- round(cols_na[i] / nrow(datos) * 100, 1)
+      cli::cli_text("  • {names(cols_na)[i]}: {cols_na[i]} ({pct}%)")
     }
   }
-  cat(" Variables         :", n_vars, "\n\n")
-  cat("-----------------------------------------\n")
-  cat(" Tabla ANOVA\n")
-  cat("-----------------------------------------\n")
-  print(summary(modelo))
+  cli::cli_text("  Variables: {n_vars}")
 
-  # Verificacion de supuestos
+  # 8. Tabla ANOVA
+  cli::cli_h2("Tabla ANOVA")
+  anova_tab <- as.data.frame(summary(modelo)[[1]])
+  print(anova_tab)
+
+  # 9. Supuestos
   inkagro_supuestos(modelo, datos, tratamiento)
 
-  cat("\n")
-  cat("-----------------------------------------\n")
-  cat(" Comparacion de Medias — Tukey HSD\n")
-  cat("-----------------------------------------\n")
+  # 10. Comparacion de medias
+  cli::cli_h2("Comparacion de Medias — Tukey HSD")
 
   if (diseno %in% c("DCA", "DBCA")) {
     tukey <- agricolae::HSD.test(modelo, tratamiento, group = TRUE)
@@ -177,15 +179,15 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
         summary(modelo)[[1]][paste0(tratamiento, ":", fa, ":", fb), "Pr(>F)"],
         error = function(e) NA)
       if (!is.na(p_triple) && p_triple < 0.05) {
-        cat(" Interaccion triple significativa (p < 0.05)\n")
-        cat(" Usando efectos simples con emmeans\n\n")
+        cli::cli_alert_warning("Interaccion triple significativa (p={round(p_triple,4)})")
+        cli::cli_alert_info("Usando efectos simples con emmeans")
         em <- emmeans::emmeans(modelo, as.formula(paste("pairwise ~",
                                                         tratamiento, "|", fa, "+", fb)))
         print(em)
         return(invisible(list(diseno = diseno, modelo = modelo, emmeans = em)))
       } else {
-        cat(" Sin interaccion triple significativa\n")
-        cat(" Comparando factores principales\n\n")
+        cli::cli_alert_info("Sin interaccion triple significativa")
+        cli::cli_text("Comparando factores principales")
         tukey_a <- agricolae::HSD.test(modelo, tratamiento, group = TRUE)
         tukey_b <- agricolae::HSD.test(modelo, fa, group = TRUE)
         tukey_c <- agricolae::HSD.test(modelo, fb, group = TRUE)
@@ -201,15 +203,14 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
         summary(modelo)[[1]][paste0(fa, ":", fb), "Pr(>F)"],
         error = function(e) NA)
       if (!is.na(p_interaccion) && p_interaccion < 0.05) {
-        cat(" Interaccion significativa (p < 0.05)\n")
-        cat(" Usando efectos simples con emmeans\n\n")
+        cli::cli_alert_warning("Interaccion significativa (p={round(p_interaccion,4)})")
+        cli::cli_alert_info("Usando efectos simples con emmeans")
         em <- emmeans::emmeans(modelo, as.formula(paste("pairwise ~",
                                                         fa, "|", fb)))
         print(em)
         return(invisible(list(diseno = diseno, modelo = modelo, emmeans = em)))
       } else {
-        cat(" Sin interaccion significativa\n")
-        cat(" Comparando factores principales\n\n")
+        cli::cli_alert_info("Sin interaccion significativa")
         tukey_a <- agricolae::HSD.test(modelo, fa, group = TRUE)
         tukey_b <- agricolae::HSD.test(modelo, fb, group = TRUE)
         print(tukey_a$groups)
@@ -220,22 +221,19 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
     }
 
   } else if (diseno == "Factorial con Ambientes") {
-
-    # Revisar si interaccion tratamiento x ambiente es significativa
     p_interaccion <- tryCatch(
       summary(modelo)[[1]][paste0(tratamiento, ":", env), "Pr(>F)"],
       error = function(e) NA)
-
     if (!is.na(p_interaccion) && p_interaccion < 0.05) {
-      cat(" Interaccion tratamiento x ambiente significativa (p < 0.05)\n")
-      cat(" Comparando tratamiento dentro de cada ambiente\n\n")
+      cli::cli_alert_warning("Interaccion tratamiento x ambiente significativa (p={round(p_interaccion,4)})")
+      cli::cli_alert_info("Comparando tratamiento dentro de cada ambiente")
       em <- emmeans::emmeans(modelo,
                              as.formula(paste("pairwise ~", tratamiento, "|", env)))
       print(em)
       return(invisible(list(diseno = diseno, modelo = modelo, emmeans = em)))
     } else {
-      cat(" Sin interaccion significativa\n")
-      cat(" Comparando factores principales\n\n")
+      cli::cli_alert_info("Sin interaccion significativa")
+      cli::cli_text("Comparando factores principales")
       tukey_trat <- tryCatch(
         agricolae::HSD.test(modelo, tratamiento, group = TRUE),
         error = function(e) NULL)
