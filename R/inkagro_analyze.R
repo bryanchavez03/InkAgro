@@ -162,7 +162,7 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
   anova_tab <- as.data.frame(anova_sum[[1]])
   anova_tab[["F value"]] <- round(anova_tab[["F value"]], 2)
   anova_tab[["Pr(>F)"]]  <- format.pval(anova_tab[["Pr(>F)"]],
-                                        digits = 3, eps = 0.001)
+                                        digits = 3, eps = 2e-16)
   anova_tab[["Sum Sq"]]  <- round(anova_tab[["Sum Sq"]], 2)
   anova_tab[["Mean Sq"]] <- round(anova_tab[["Mean Sq"]], 2)
   print(anova_tab)
@@ -188,7 +188,10 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
         cli::cli_alert_info("Usando efectos simples con emmeans")
         em <- emmeans::emmeans(modelo, as.formula(paste("pairwise ~",
                                                         tratamiento, "|", fa, "+", fb)))
-        print(em)
+        cli::cli_h3("Medias estimadas")
+        print(em$emmeans)
+        cli::cli_h3("Contrastes (Tukey)")
+        print(em$contrasts)
         return(invisible(list(diseno = diseno, modelo = modelo, emmeans = em)))
       } else {
         cli::cli_alert_info("Sin interaccion triple significativa")
@@ -212,7 +215,10 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
         cli::cli_alert_info("Usando efectos simples con emmeans")
         em <- emmeans::emmeans(modelo, as.formula(paste("pairwise ~",
                                                         fa, "|", fb)))
-        print(em)
+        cli::cli_h3("Medias estimadas")
+        print(em$emmeans)
+        cli::cli_h3("Contrastes (Tukey)")
+        print(em$contrasts)
         return(invisible(list(diseno = diseno, modelo = modelo, emmeans = em)))
       } else {
         cli::cli_alert_info("Sin interaccion significativa")
@@ -234,7 +240,10 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
       cli::cli_alert_info("Comparando tratamiento dentro de cada ambiente")
       em <- emmeans::emmeans(modelo,
                              as.formula(paste("pairwise ~", tratamiento, "|", env)))
-      print(em)
+      cli::cli_h3("Medias estimadas por ambiente")
+      print(em$emmeans)
+      cli::cli_h3("Contrastes (Tukey)")
+      print(em$contrasts)
       return(invisible(list(diseno = diseno, modelo = modelo, emmeans = em)))
     } else {
       cli::cli_alert_info("Sin interaccion significativa")
@@ -259,7 +268,10 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
 
   } else {
     em <- emmeans::emmeans(modelo, as.formula(paste("pairwise ~", tratamiento)))
-    print(em)
+    cli::cli_h3("Medias estimadas")
+    print(em$emmeans)
+    cli::cli_h3("Contrastes (Tukey)")
+    print(em$contrasts)
     return(invisible(list(diseno = diseno, modelo = modelo, emmeans = em)))
   }
 }
