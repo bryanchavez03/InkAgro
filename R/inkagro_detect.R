@@ -29,7 +29,23 @@ inkagro_detect <- function(datos, verbose = TRUE) {
   } else if (tiene_tiempo & tiene_parcela & tiene_bloque) {
     diseno <- "Repeated Measures"
   } else if (tiene_trat & tiene_ambiente & tiene_bloque) {
-    diseno <- "Multiambiental (MET)"
+    col_amb  <- cols[cols %in% pal_ambiente][1]
+    col_trat <- cols[cols %in% pal_trat][1]
+    col_blq  <- cols[cols %in% pal_bloque][1]
+    n_amb    <- length(unique(na.omit(datos[[col_amb]])))
+
+    if (!is.na(col_blq) && !is.na(col_amb)) {
+      tab_blq_amb  <- table(datos[[col_amb]], datos[[col_blq]])
+      bloques_anidados <- any(rowSums(tab_blq_amb > 0) < ncol(tab_blq_amb))
+    } else {
+      bloques_anidados <- FALSE
+    }
+
+    if (n_amb >= 2 && bloques_anidados) {
+      diseno <- "Multiambiental (MET)"
+    } else {
+      diseno <- "DBCA"
+    }
   } else if (tiene_alpha & tiene_bloque) {
     diseno <- "Alfa-latice"
   } else if (tiene_parcela & tiene_bloque) {

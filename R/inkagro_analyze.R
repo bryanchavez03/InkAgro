@@ -143,7 +143,6 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
   cli::cli_h2("Reporte de Calidad")
   na_reporte <- colSums(is.na(datos))
   na_total   <- sum(na_reporte)
-  n_total    <- nrow(datos) * ncol(datos)
 
   if (na_total == 0) {
     cli::cli_alert_success("Sin valores faltantes")
@@ -158,14 +157,19 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
 
   # 8. Tabla ANOVA
   cli::cli_h2("Tabla ANOVA")
-  anova_sum <- summary(modelo)
-  anova_tab <- as.data.frame(anova_sum[[1]])
-  anova_tab[["F value"]] <- round(anova_tab[["F value"]], 2)
-  anova_tab[["Pr(>F)"]]  <- format.pval(anova_tab[["Pr(>F)"]],
-                                        digits = 3, eps = 2e-16)
-  anova_tab[["Sum Sq"]]  <- round(anova_tab[["Sum Sq"]], 2)
-  anova_tab[["Mean Sq"]] <- round(anova_tab[["Mean Sq"]], 2)
-  print(anova_tab)
+  es_lmer <- inherits(modelo, "lmerMod")
+  if (es_lmer) {
+    print(summary(modelo))
+  } else {
+    anova_sum <- summary(modelo)
+    anova_tab <- as.data.frame(anova_sum[[1]])
+    anova_tab[["F value"]] <- round(anova_tab[["F value"]], 2)
+    anova_tab[["Pr(>F)"]]  <- format.pval(anova_tab[["Pr(>F)"]],
+                                          digits = 3, eps = 2e-16)
+    anova_tab[["Sum Sq"]]  <- round(anova_tab[["Sum Sq"]], 2)
+    anova_tab[["Mean Sq"]] <- round(anova_tab[["Mean Sq"]], 2)
+    print(anova_tab)
+  }
 
   # 9. Supuestos
   inkagro_supuestos(modelo, datos, tratamiento)
