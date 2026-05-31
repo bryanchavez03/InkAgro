@@ -136,7 +136,7 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
   ))
   if (!is.null(bloque))
     cli::cli_text("  Bloque: {bloque} ({n_bloque} bloques)")
-  if (!is.null(env))
+  if (!is.null(env) && !diseno %in% c("DCA","DBCA"))
     cli::cli_text("  Ambiente: {env}")
 
   # 7. Reporte de calidad
