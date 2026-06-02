@@ -2,7 +2,6 @@ inkagro_clean <- function(datos, verbose = TRUE,
                           imputar = "media",
                           sinonimos = NULL) {
 
-  # 1. Verificar que los datos existen
   if (!is.data.frame(datos)) {
     stop("Los datos deben ser un data.frame")
   }
@@ -34,15 +33,11 @@ inkagro_clean <- function(datos, verbose = TRUE,
   datos <- as.data.frame(lapply(datos, function(x) {
     if (is.character(x)) {
       x_num <- suppressWarnings(as.numeric(x))
-      if (mean(is.na(x_num)) < 0.5) {
-        return(x_num)
-      }
+      if (mean(is.na(x_num)) < 0.5) return(x_num)
       x_num2 <- suppressWarnings(as.numeric(gsub("[^0-9\\.]", "", x)))
       patron_num_letra <- grepl("^[0-9\\.]+\\s*[a-zA-Z]+$", x)
       if (mean(patron_num_letra, na.rm = TRUE) > 0.3 &&
-          mean(is.na(x_num2)) < 0.5) {
-        return(x_num2)
-      }
+          mean(is.na(x_num2)) < 0.5) return(x_num2)
     }
     return(x)
   }))
@@ -53,10 +48,8 @@ inkagro_clean <- function(datos, verbose = TRUE,
       x_clean <- tolower(trimws(x))
       x_clean <- gsub("^rep[a-z]*\\.?\\s*", "", x_clean)
       x_clean <- gsub("^r\\s*", "", x_clean)
-      x_num <- suppressWarnings(as.numeric(x_clean))
-      if (mean(is.na(x_num)) < 0.3) {
-        return(x_num)
-      }
+      x_num   <- suppressWarnings(as.numeric(x_clean))
+      if (mean(is.na(x_num)) < 0.3) return(x_num)
     }
     return(x)
   }))
@@ -72,7 +65,7 @@ inkagro_clean <- function(datos, verbose = TRUE,
   # 7.6 Normalizar bloques y factores extrayendo numero final
   datos <- as.data.frame(lapply(datos, function(x) {
     if (is.character(x)) {
-      x_norm <- gsub("^[a-z_]+\\s*(\\d+)$", "\\1", x)
+      x_norm      <- gsub("^[a-z_]+\\s*(\\d+)$", "\\1", x)
       x_num_check <- suppressWarnings(as.numeric(x_norm))
       if (mean(!is.na(x_num_check)) > 0.7 &&
           length(unique(x_norm)) < length(unique(x))) {
@@ -83,8 +76,13 @@ inkagro_clean <- function(datos, verbose = TRUE,
   }))
 
   # 8. Tratar valores faltantes
+  # NUNCA imputar variables continuas (respuesta, covariables)
   if (imputar != "ninguno") {
-    datos <- as.data.frame(lapply(datos, function(x) {
+    col_names <- names(datos)
+    datos_list <- lapply(col_names, function(col) {
+      x <- datos[[col]]
+      es_continua <- is.numeric(x) && length(unique(na.omit(x))) > 10
+      if (es_continua) return(x)
       if (is.numeric(x) && any(is.na(x))) {
         if (imputar == "media") {
           x[is.na(x)] <- round(mean(x, na.rm = TRUE), 2)
@@ -99,18 +97,23 @@ inkagro_clean <- function(datos, verbose = TRUE,
         x[is.na(x)] <- moda
       }
       return(x)
-    }))
+    })
+    datos           <- as.data.frame(datos_list)
+    names(datos)    <- col_names
   }
 
   # 9. Convertir numericos con pocos niveles a factor
+  # EXCEPTO variables continuas
   datos <- as.data.frame(lapply(datos, function(x) {
-    if (is.numeric(x) && length(unique(na.omit(x))) <= 8) {
-      return(as.factor(x))
+    if (is.numeric(x)) {
+      n_unicos    <- length(unique(na.omit(x)))
+      es_continua <- n_unicos > 10
+      if (!es_continua && n_unicos <= 8) return(as.factor(x))
     }
     return(x)
   }))
 
-  # 10. Agrupar niveles similares automaticamente — solo texto
+  # 10. Agrupar niveles similares — solo texto
   datos <- as.data.frame(lapply(datos, function(x) {
     if (is.character(x)) {
       niveles <- unique(na.omit(x))
@@ -121,13 +124,9 @@ inkagro_clean <- function(datos, verbose = TRUE,
         if (nchar(niv) == 1) {
           candidatos <- names(niveles_freq)[startsWith(names(niveles_freq), niv)]
           candidatos <- candidatos[nchar(candidatos) > 1]
-          if (length(candidatos) > 0) {
-            x[x == niv] <- candidatos[1]
-          }
+          if (length(candidatos) > 0) x[x == niv] <- candidatos[1]
         }
       }
-
-      # Actualizar niveles
       niveles <- unique(na.omit(x))
 
       # Normalizar prefijos de nivel de factor
@@ -141,16 +140,26 @@ inkagro_clean <- function(datos, verbose = TRUE,
 
       # Normalizar prefijos de tratamiento
       if (all(nchar(niveles) <= 8, na.rm = TRUE)) {
-        x <- gsub("^trat_", "t", x)
-        x <- gsub("^trat",  "t", x)
-        x <- gsub("^t-",    "t", x)
+        x <- gsub("^trat_",        "t",   x)
+        x <- gsub("^trat",         "t",   x)
+        x <- gsub("^t-",           "t",   x)
+        x <- gsub("^alpha(\\d+)$", "\\1", x)
+        x <- gsub("^a-(\\d+)$",   "\\1", x)
+        x <- gsub("^a(\\d+)$",    "\\1", x)
+        x <- gsub("^x-(\\d+)$",   "\\1", x)
+        x <- gsub("^x(\\d+)$",    "\\1", x)
+        x <- gsub("^y-(\\d+)$",   "\\1", x)
+        x <- gsub("^ay(\\d+)$",   "\\1", x)
+        x <- gsub("^y(\\d+)$",    "\\1", x)
+        x <- gsub("^d-(\\d+)$",   "\\1", x)
+        x <- gsub("^d(\\d+)$",    "\\1", x)
         niveles <- unique(na.omit(x))
       }
 
       # Normalizar prefijo t de tratamientos numericos
       x_sin_t <- gsub("^t(\\d+)$", "\\1", x)
       if (length(unique(na.omit(x_sin_t))) < length(unique(na.omit(x)))) {
-        x <- x_sin_t
+        x       <- x_sin_t
         niveles <- unique(na.omit(x))
       }
 
@@ -159,8 +168,7 @@ inkagro_clean <- function(datos, verbose = TRUE,
         for (i in seq_along(niveles)) {
           for (j in seq_along(niveles)) {
             if (i != j && niveles[i] %in% x && niveles[j] %in% x) {
-              dist <- stringdist::stringdist(niveles[i], niveles[j],
-                                             method = "jw")
+              dist <- stringdist::stringdist(niveles[i], niveles[j], method = "jw")
               if (dist < 0.25) {
                 freq_i <- sum(x == niveles[i], na.rm = TRUE)
                 freq_j <- sum(x == niveles[j], na.rm = TRUE)
@@ -182,8 +190,8 @@ inkagro_clean <- function(datos, verbose = TRUE,
   # 10.5 Eliminar decimales largos infiltrados en columnas de factor
   datos <- as.data.frame(lapply(datos, function(x) {
     if (is.factor(x)) {
-      niveles <- levels(x)
-      niveles_num <- suppressWarnings(as.numeric(as.character(niveles)))
+      niveles          <- levels(x)
+      niveles_num      <- suppressWarnings(as.numeric(as.character(niveles)))
       niveles_corruptos <- niveles[!is.na(niveles_num) &
                                      grepl("\\.", as.character(niveles)) &
                                      nchar(as.character(niveles)) > 3]
@@ -199,7 +207,7 @@ inkagro_clean <- function(datos, verbose = TRUE,
   if (!is.null(sinonimos)) {
     for (col in names(sinonimos)) {
       if (col %in% names(datos)) {
-        mapa <- sinonimos[[col]]
+        mapa        <- sinonimos[[col]]
         datos[[col]] <- as.character(datos[[col]])
         for (original in names(mapa)) {
           datos[[col]][datos[[col]] == original] <- mapa[[original]]
@@ -210,17 +218,16 @@ inkagro_clean <- function(datos, verbose = TRUE,
     }
   }
 
-  # 12. Recalcular NA despues de imputacion
-  na_reporte <- colSums(is.na(datos))
+  # 12. Recalcular NA
+  na_reporte        <- colSums(is.na(datos))
   attr(datos, "na_reporte") <- na_reporte
 
   if (verbose) {
     na_tratados <- sum(is.na(datos))
     if (na_tratados == 0) {
-      message("Limpieza completada. Valores faltantes imputados correctamente.")
+      message("Limpieza completada. Sin valores faltantes.")
     } else {
-      message("Limpieza completada. ", na_tratados,
-              " valores faltantes no pudieron ser imputados.")
+      message("Limpieza completada. ", na_tratados, " valores faltantes restantes.")
     }
   }
 
