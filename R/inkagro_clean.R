@@ -113,8 +113,12 @@ inkagro_clean <- function(datos, verbose = TRUE,
     return(x)
   }))
 
-  # 10. Agrupar niveles similares — solo texto
-  datos <- as.data.frame(lapply(datos, function(x) {
+  # 10. Agrupar niveles similares — solo texto, protegiendo columnas de tratamiento/variedad
+  col_names_10  <- names(datos)
+  datos_list_10 <- lapply(seq_along(col_names_10), function(idx) {
+    x   <- datos[[idx]]
+    col <- col_names_10[idx]
+
     if (is.character(x)) {
       niveles <- unique(na.omit(x))
 
@@ -163,19 +167,27 @@ inkagro_clean <- function(datos, verbose = TRUE,
         niveles <- unique(na.omit(x))
       }
 
-      # Agrupar por distancia de cadenas
-      if (length(niveles) > 1 && length(niveles) <= 30) {
+      # Agrupar por distancia de cadenas — SOLO etiquetas cortas y columnas no-tratamiento.
+      # Se omite en columnas de tratamiento/variedad/genotipo para evitar colapsar
+      # genotipos o variedades con nombres similares (ej. irga_423 vs irga_424).
+      es_col_trat <- col %in% pal_trat
+      if (!es_col_trat && length(niveles) > 1 && length(niveles) <= 30) {
         for (i in seq_along(niveles)) {
           for (j in seq_along(niveles)) {
             if (i != j && niveles[i] %in% x && niveles[j] %in% x) {
-              dist <- stringdist::stringdist(niveles[i], niveles[j], method = "jw")
-              if (dist < 0.25) {
-                freq_i <- sum(x == niveles[i], na.rm = TRUE)
-                freq_j <- sum(x == niveles[j], na.rm = TRUE)
-                if (freq_i >= freq_j) {
-                  x[x == niveles[j]] <- niveles[i]
-                } else {
-                  x[x == niveles[i]] <- niveles[j]
+              # Umbral conservador (0.12) solo para codigos cortos (<=6 chars):
+              # captura errores tipograficos en etiquetas de bloque/factor,
+              # sin riesgo de fusionar nombres de variedades mas largos.
+              if (nchar(niveles[i]) <= 6 && nchar(niveles[j]) <= 6) {
+                dist_jw <- stringdist::stringdist(niveles[i], niveles[j], method = "jw")
+                if (dist_jw < 0.12) {
+                  freq_i <- sum(x == niveles[i], na.rm = TRUE)
+                  freq_j <- sum(x == niveles[j], na.rm = TRUE)
+                  if (freq_i >= freq_j) {
+                    x[x == niveles[j]] <- niveles[i]
+                  } else {
+                    x[x == niveles[i]] <- niveles[j]
+                  }
                 }
               }
             }
@@ -185,7 +197,9 @@ inkagro_clean <- function(datos, verbose = TRUE,
       return(as.factor(x))
     }
     return(x)
-  }))
+  })
+  names(datos_list_10) <- col_names_10
+  datos <- as.data.frame(datos_list_10)
 
   # 10.5 Eliminar decimales largos infiltrados en columnas de factor
   datos <- as.data.frame(lapply(datos, function(x) {

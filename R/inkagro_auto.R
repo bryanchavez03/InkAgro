@@ -103,5 +103,17 @@ inkagro_auto <- function(datos, respuesta, tratamiento,
                                verbose     = FALSE,
                                n_obs       = nrow(datos),
                                n_vars      = ncol(datos))
+
+  # 5. Agregar metadatos al resultado para que inkagro_plot pueda usarlos
+  resultado$datos       <- datos
+  resultado$respuesta   <- tolower(trimws(respuesta))
+  resultado$tratamiento <- tolower(trimws(tratamiento))
+  resultado$fa          <- if (!is.null(fa))  tolower(trimws(fa))  else NULL
+  resultado$fb          <- if (!is.null(fb))  tolower(trimws(fb))  else NULL
+  resultado$env         <- if (!is.null(env)) tolower(trimws(env)) else NULL
+
+  # 6. Generar graficos automaticamente
+  resultado$graficos <- inkagro_plot(resultado)
+
   return(invisible(resultado))
 }

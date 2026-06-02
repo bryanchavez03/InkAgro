@@ -1,3 +1,19 @@
+# Imprime tabla Tukey de forma compacta cuando hay muchos tratamientos
+.ink_print_tukey <- function(hsd_obj) {
+  tab <- hsd_obj$groups
+  n   <- nrow(tab)
+  if (n > 15) {
+    cli::cli_alert_info(
+      "Tabla con {n} niveles — mostrando los primeros 10.")
+    print(head(tab, 10))
+    cli::cli_text("  ... ({n - 10} niveles mas) ...")
+    cli::cli_alert_info(
+      "Use resultado$tukey$groups para ver la tabla completa.")
+  } else {
+    print(tab)
+  }
+}
+
 inkagro_analyze <- function(datos, respuesta, tratamiento,
                             bloque = NULL, fa = NULL, fb = NULL,
                             rep = NULL, iblock = NULL,
@@ -49,11 +65,30 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
     diseno <- "Factorial"
   }
 
+  # Fallback cuando el diseno no pudo detectarse automaticamente.
+  # Ocurre cuando el nombre de la columna de tratamiento no esta en pal_trat
+  # (ej. "Factor_P" esta en pal_factor, no en pal_trat).
+  if (grepl("No detectado", diseno)) {
+    if (!is.null(bloque) && bloque %in% names(datos)) {
+      cli::cli_alert_warning(
+        "Diseno no detectado automaticamente — se usara DBCA como alternativa.")
+      diseno <- "DBCA"
+    } else {
+      cli::cli_alert_warning(
+        "Diseno no detectado automaticamente — se usara DCA como alternativa.")
+      diseno <- "DCA"
+    }
+  }
+
   # 5. Detectar columnas automaticamente
   cols <- names(datos)
 
   if (is.null(fa)) {
-    factores <- cols[cols %in% pal_factor]
+    # Excluir columnas ya asignadas como tratamiento, bloque, etc.
+    # Evita que "Factor_P" u otras columnas en pal_factor sean
+    # reutilizadas como fa cuando ya cumplen el rol de tratamiento principal.
+    ya_usadas <- c(tratamiento, bloque, rep, gen, env)
+    factores  <- cols[cols %in% pal_factor & !cols %in% ya_usadas]
     if (length(factores) >= 1) fa <- factores[1]
     if (length(factores) >= 2) fb <- factores[2]
   }
@@ -94,6 +129,21 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
     datos[[gen]]     <- as.factor(trimws(as.character(datos[[gen]])))
   if (!is.null(env) && env %in% names(datos))
     datos[[env]]     <- as.factor(trimws(as.character(datos[[env]])))
+
+  # Eliminar filas con NA en columnas clave del diseño experimental
+  # (tratamiento, bloque, fa, fb, etc.) — no se pueden imputar porque
+  # definen la estructura del experimento
+  cols_diseno <- unique(c(tratamiento, bloque, fa, fb, rep, env, gen, iblock))
+  cols_diseno <- cols_diseno[!is.null(cols_diseno) & cols_diseno %in% names(datos)]
+  if (length(cols_diseno) > 0) {
+    na_diseno <- rowSums(is.na(datos[, cols_diseno, drop = FALSE])) > 0
+    if (any(na_diseno)) {
+      n_eliminadas <- sum(na_diseno)
+      cli::cli_alert_warning(
+        "Se eliminaron {n_eliminadas} fila(s) con NA en columnas del diseno.")
+      datos <- datos[!na_diseno, ]
+    }
+  }
 
   # Remover outliers extremos
   q1  <- quantile(datos[[respuesta]], 0.25, na.rm = TRUE)
@@ -154,6 +204,16 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
     modelo <- aov(formula, data = datos)
 
   } else if (diseno == "Parcelas Divididas") {
+    if (is.null(fa) || is.null(fb) || is.null(bloque)) {
+      stop(
+        "Parcelas Divididas requiere tres columnas: fa (parcela principal), ",
+        "fb (subparcela) y bloque. No se detectaron automaticamente. ",
+        "Especificalas manualmente: inkagro_analyze(..., fa='col_fa', fb='col_fb', bloque='col_bloque')"
+      )
+    }
+    if (!fa     %in% names(datos)) stop("La columna fa='",     fa,     "' no existe en los datos.")
+    if (!fb     %in% names(datos)) stop("La columna fb='",     fb,     "' no existe en los datos.")
+    if (!bloque %in% names(datos)) stop("La columna bloque='", bloque, "' no existe en los datos.")
     formula <- as.formula(paste(respuesta, "~", fa, "*", fb,
                                 "+ Error(", bloque, "/", fa, ")"))
     modelo  <- aov(formula, data = datos)
@@ -174,6 +234,58 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
     formula  <- as.formula(paste(respuesta, "~", tratamiento, "+",
                                  col_fila, "+", col_col))
     modelo   <- aov(formula, data = datos)
+
+  } else if (diseno == "Strip-plot") {
+    col_strip_r <- cols[cols %in% c("strip_row", "row_trt", "horizontal_factor",
+                                     "factor_row", "row_factor")][1]
+    col_strip_c <- cols[cols %in% c("strip_col", "col_trt", "vertical_factor",
+                                     "factor_col", "column_factor", "cross_strip")][1]
+    if (!is.na(col_strip_r) && !is.na(col_strip_c)) {
+      datos[[col_strip_r]] <- as.factor(datos[[col_strip_r]])
+      datos[[col_strip_c]] <- as.factor(datos[[col_strip_c]])
+      if (!is.null(bloque)) {
+        # Modelo mixto: bloque + efectos de fila y columna de strip anidados en bloque
+        formula <- as.formula(paste(
+          respuesta, "~", col_strip_r, "*", col_strip_c,
+          "+ (1|", bloque, ") + (1|", bloque, ":", col_strip_r,
+          ") + (1|", bloque, ":", col_strip_c, ")"
+        ))
+        modelo <- lme4::lmer(formula, data = datos)
+      } else {
+        formula <- as.formula(paste(respuesta, "~", col_strip_r, "*", col_strip_c))
+        modelo  <- aov(formula, data = datos)
+      }
+    } else {
+      cli::cli_alert_warning(
+        "No se detectaron columnas strip (row_trt / col_trt). Usando DCA como alternativa.")
+      formula <- as.formula(paste(respuesta, "~", tratamiento))
+      modelo  <- aov(formula, data = datos)
+    }
+
+  } else if (diseno == "Repeated Measures") {
+    col_parcela <- cols[cols %in% pal_parcela][1]
+    col_tiempo  <- cols[cols %in% pal_tiempo][1]
+    if (!is.na(col_parcela) && !is.na(col_tiempo)) {
+      datos[[col_tiempo]]  <- as.factor(datos[[col_tiempo]])
+      datos[[col_parcela]] <- as.factor(datos[[col_parcela]])
+      if (!is.null(bloque)) {
+        formula <- as.formula(paste(
+          respuesta, "~", bloque, "+", tratamiento, "*", col_tiempo,
+          "+ Error(", col_parcela, "/", col_tiempo, ")"
+        ))
+      } else {
+        formula <- as.formula(paste(
+          respuesta, "~", tratamiento, "*", col_tiempo,
+          "+ Error(", col_parcela, "/", col_tiempo, ")"
+        ))
+      }
+      modelo <- aov(formula, data = datos)
+    } else {
+      cli::cli_alert_warning(
+        "No se detectaron columnas de parcela/tiempo. Usando DCA como alternativa.")
+      formula <- as.formula(paste(respuesta, "~", tratamiento))
+      modelo  <- aov(formula, data = datos)
+    }
 
   } else {
     stop("Diseno no soportado en esta version.")
@@ -247,7 +359,7 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
 
   if (diseno %in% c("DCA", "DBCA")) {
     tukey <- agricolae::HSD.test(modelo, tratamiento, group = TRUE)
-    print(tukey$groups)
+    .ink_print_tukey(tukey)
     return(invisible(list(diseno = diseno, modelo = modelo, tukey = tukey)))
 
   } else if (diseno == "Factorial") {
@@ -271,9 +383,9 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
         tukey_a <- agricolae::HSD.test(modelo, tratamiento, group = TRUE)
         tukey_b <- agricolae::HSD.test(modelo, fa, group = TRUE)
         tukey_c <- agricolae::HSD.test(modelo, fb, group = TRUE)
-        print(tukey_a$groups)
-        print(tukey_b$groups)
-        print(tukey_c$groups)
+        .ink_print_tukey(tukey_a)
+        .ink_print_tukey(tukey_b)
+        .ink_print_tukey(tukey_c)
         return(invisible(list(diseno = diseno, modelo = modelo,
                               tukey_a = tukey_a, tukey_b = tukey_b,
                               tukey_c = tukey_c)))
@@ -296,8 +408,8 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
         cli::cli_alert_info("Sin interaccion significativa")
         tukey_trat <- agricolae::HSD.test(modelo, tratamiento, group = TRUE)
         tukey_fa   <- agricolae::HSD.test(modelo, fa, group = TRUE)
-        print(tukey_trat$groups)
-        print(tukey_fa$groups)
+        .ink_print_tukey(tukey_trat)
+        .ink_print_tukey(tukey_fa)
         return(invisible(list(diseno = diseno, modelo = modelo,
                               tukey_trat = tukey_trat,
                               tukey_fa   = tukey_fa)))
@@ -330,9 +442,9 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
       tukey_env <- tryCatch(
         agricolae::HSD.test(modelo, env, group = TRUE),
         error = function(e) NULL)
-      if (!is.null(tukey_trat)) print(tukey_trat$groups)
-      if (!is.null(tukey_fa))   print(tukey_fa$groups)
-      if (!is.null(tukey_env))  print(tukey_env$groups)
+      if (!is.null(tukey_trat)) .ink_print_tukey(tukey_trat)
+      if (!is.null(tukey_fa))   .ink_print_tukey(tukey_fa)
+      if (!is.null(tukey_env))  .ink_print_tukey(tukey_env)
       return(invisible(list(diseno = diseno, modelo = modelo,
                             tukey_trat = tukey_trat,
                             tukey_fa   = tukey_fa,
@@ -354,8 +466,55 @@ inkagro_analyze <- function(datos, respuesta, tratamiento,
 
   } else if (diseno == "Cuadrado Latino") {
     tukey <- agricolae::HSD.test(modelo, tratamiento, group = TRUE)
-    print(tukey$groups)
+    .ink_print_tukey(tukey)
     return(invisible(list(diseno = diseno, modelo = modelo, tukey = tukey)))
+
+  } else if (diseno == "Strip-plot") {
+    col_strip_r <- cols[cols %in% c("strip_row", "row_trt", "horizontal_factor",
+                                     "factor_row", "row_factor")][1]
+    col_strip_c <- cols[cols %in% c("strip_col", "col_trt", "vertical_factor",
+                                     "factor_col", "column_factor", "cross_strip")][1]
+    if (!is.na(col_strip_r) && !is.na(col_strip_c)) {
+      em <- tryCatch(
+        emmeans::emmeans(modelo,
+                         as.formula(paste("pairwise ~", col_strip_r, "|", col_strip_c))),
+        error = function(e) NULL)
+      if (!is.null(em)) {
+        cli::cli_h3("Medias estimadas — Factor Fila | Factor Columna")
+        print(em$emmeans)
+        cli::cli_h3("Contrastes (Tukey)")
+        print(em$contrasts)
+      }
+      return(invisible(list(diseno = diseno, modelo = modelo, emmeans = em)))
+    } else {
+      tukey <- tryCatch(
+        agricolae::HSD.test(modelo, tratamiento, group = TRUE),
+        error = function(e) NULL)
+      if (!is.null(tukey)) .ink_print_tukey(tukey)
+      return(invisible(list(diseno = diseno, modelo = modelo, tukey = tukey)))
+    }
+
+  } else if (diseno == "Repeated Measures") {
+    col_tiempo <- cols[cols %in% pal_tiempo][1]
+    if (!is.na(col_tiempo)) {
+      em <- tryCatch(
+        emmeans::emmeans(modelo,
+                         as.formula(paste("pairwise ~", tratamiento, "|", col_tiempo))),
+        error = function(e) NULL)
+      if (!is.null(em)) {
+        cli::cli_h3("Medias estimadas — Tratamiento | Tiempo")
+        print(em$emmeans)
+        cli::cli_h3("Contrastes (Tukey)")
+        print(em$contrasts)
+      }
+      return(invisible(list(diseno = diseno, modelo = modelo, emmeans = em)))
+    } else {
+      tukey <- tryCatch(
+        agricolae::HSD.test(modelo, tratamiento, group = TRUE),
+        error = function(e) NULL)
+      if (!is.null(tukey)) .ink_print_tukey(tukey)
+      return(invisible(list(diseno = diseno, modelo = modelo, tukey = tukey)))
+    }
 
   } else {
     em <- emmeans::emmeans(modelo, as.formula(paste("pairwise ~", tratamiento)))

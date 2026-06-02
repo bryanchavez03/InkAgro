@@ -8,16 +8,17 @@ Description: Automated pipeline for importing, cleaning, detecting
     experimental design, analyzing and reporting agricultural data.
 License: MIT + file LICENSE
 Encoding: UTF-8
-RoxygenNote: 7.0.0
+RoxygenNote: 8.0.0
 Imports: 
     agricolae,
     car,
     cli,
     emmeans,
+    ggplot2,
     haven,
     lme4,
+    multcomp,
     readxl,
-    stringdist,
-    tools
+    stringdist
 URL: https://github.com/bryanchavez03/InkAgro
 BugReports: https://github.com/bryanchavez03/InkAgro/issues

@@ -1,1 +1,1 @@
-usethis::use_r("inkagro_clean")
+# Archivo reservado — sin contenido funcional.

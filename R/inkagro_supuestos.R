@@ -37,8 +37,6 @@ inkagro_supuestos <- function(modelo, datos, tratamiento) {
 
   # 2. Homogeneidad
   cli::cli_h3("2. Homogeneidad de varianzas")
-  trat_factor <- droplevels(as.factor(trimws(as.character(
-    datos[[tratamiento]]))))
   datos_modelo <- tryCatch(model.frame(modelo), error = function(e) datos)
   trat_factor  <- droplevels(as.factor(datos_modelo[[tratamiento]]))
   res_clean    <- residuos
