@@ -1,14 +1,14 @@
 inkagro_plot <- function(resultado,
-                         datos       = NULL,
-                         respuesta   = NULL,
-                         tratamiento = NULL,
-                         color_barras = "#2E75B6",
+                         datos         = NULL,
+                         respuesta     = NULL,
+                         tratamiento   = NULL,
+                         color_barras  = "#2E75B6",
                          color_relleno = "#BDD7EE",
-                         tema = "classic",
-                         exportar = FALSE,
-                         resolucion = 300,
-                         ancho = 8,
-                         alto = 6) {
+                         tema          = "classic",
+                         exportar      = FALSE,
+                         resolucion    = 300,
+                         ancho         = 8,
+                         alto          = 6) {
 
   if (is.null(datos))       datos       <- resultado$datos
   if (is.null(respuesta))   respuesta   <- resultado$respuesta
@@ -46,26 +46,27 @@ inkagro_plot <- function(resultado,
 
   graficos <- list()
 
-  # Tema dinamico segun parametro
+  # FIX 3: corregido ggplot2 (era ggplo2)
   tema_base <- switch(tema,
-    "classic" = ggplot2::theme_classic(base_size = 13),
-    "bw" = ggplot2::theme_bw(base_size = 13),
-    "minimal" = ggplot2::theme_minimal(base_size = 13),
-    ggplo2::theme_classic(base_size = 13))
+                      "classic" = ggplot2::theme_classic(base_size = 13),
+                      "bw"      = ggplot2::theme_bw(base_size = 13),
+                      "minimal" = ggplot2::theme_minimal(base_size = 13),
+                      ggplot2::theme_classic(base_size = 13)
+  )
 
   tema_pub <- tema_base +
     ggplot2::theme(
-      axis.text.x      = ggplot2::element_text(angle = 30, hjust = 1,
-                                               color = "black"),
-      axis.text.y      = ggplot2::element_text(color = "black"),
-      axis.title       = ggplot2::element_text(face = "bold", size = 12),
-      plot.title       = ggplot2::element_text(face = "bold", size = 13,
-                                               hjust = 0),
-      plot.subtitle    = ggplot2::element_text(size = 10, color = "gray40",
-                                               hjust = 0),
-      panel.border     = ggplot2::element_rect(color = "black",
-                                               fill = NA, linewidth = 0.6),
-      axis.line        = ggplot2::element_blank()
+      axis.text.x   = ggplot2::element_text(angle = 30, hjust = 1,
+                                            color = "black"),
+      axis.text.y   = ggplot2::element_text(color = "black"),
+      axis.title    = ggplot2::element_text(face = "bold", size = 12),
+      plot.title    = ggplot2::element_text(face = "bold", size = 13,
+                                            hjust = 0),
+      plot.subtitle = ggplot2::element_text(size = 10, color = "gray40",
+                                            hjust = 0),
+      panel.border  = ggplot2::element_rect(color = "black",
+                                            fill = NA, linewidth = 0.6),
+      axis.line     = ggplot2::element_blank()
     )
 
   # 1. Boxplot
@@ -79,11 +80,18 @@ inkagro_plot <- function(resultado,
       y = .data[[respuesta]]
     )
   ) +
-    ggplot2::geom_boxplot(fill = color_relleno , color = color_barras,
-                          outlier.shape = 21, outlier.fill = "white",
-                          outlier.color = color_barras, linewidth = 0.6) +
-    ggplot2::geom_jitter(width = 0.15, alpha = 0.4, size = 1.2,
-                         color = color_barras) +
+    ggplot2::geom_boxplot(
+      fill          = color_relleno,
+      color         = color_barras,
+      outlier.shape = 21,
+      outlier.fill  = "white",
+      outlier.color = color_barras,
+      linewidth     = 0.6
+    ) +
+    ggplot2::geom_jitter(
+      width = 0.15, alpha = 0.4, size = 1.2,
+      color = color_barras
+    ) +
     ggplot2::labs(
       title    = paste0("Distribucion de ", toupper(respuesta),
                         " por tratamiento"),
@@ -120,7 +128,7 @@ inkagro_plot <- function(resultado,
     if (!is.null(cld_obj) && ".group" %in% names(cld_obj)) {
       cld_obj$media  <- cld_obj$emmean
       cld_obj$groups <- trimws(cld_obj$.group)
-      tukey_df <- cld_obj
+      tukey_df       <- cld_obj
     }
   }
 
@@ -154,8 +162,12 @@ inkagro_plot <- function(resultado,
         y = .data[["media"]]
       )
     ) +
-      ggplot2::geom_col(fill = color_barras, color = "black",
-                        linewidth = 0.4, width = 0.65) +
+      ggplot2::geom_col(
+        fill      = color_barras,
+        color     = "black",
+        linewidth = 0.4,
+        width     = 0.65
+      ) +
       ggplot2::geom_errorbar(
         ggplot2::aes(ymin = media - se, ymax = media + se),
         width = 0.2, color = "black", linewidth = 0.6
@@ -215,8 +227,7 @@ inkagro_plot <- function(resultado,
         data.frame(ajustados = ajustados, residuos = residuos),
         ggplot2::aes(x = ajustados, y = residuos)
       ) +
-        ggplot2::geom_point(color = color_barras, alpha = 0.6,
-                            size = 1.5) +
+        ggplot2::geom_point(color = color_barras, alpha = 0.6, size = 1.5) +
         ggplot2::geom_hline(yintercept = 0, linetype = "dashed",
                             color = "black", linewidth = 0.7) +
         ggplot2::labs(
@@ -238,7 +249,8 @@ inkagro_plot <- function(resultado,
                       error = function(e) NULL)
 
     if (!is.null(em_df) &&
-        all(c(tratamiento, fa, "emmean", "lower.CL", "upper.CL") %in% names(em_df))) {
+        all(c(tratamiento, fa, "emmean", "lower.CL", "upper.CL") %in%
+            names(em_df))) {
 
       cat("Generando figura 5: Grafico de interaccion...\n")
 
@@ -296,8 +308,7 @@ inkagro_plot <- function(resultado,
         ggplot2::geom_point(size = 2.5) +
         ggplot2::geom_line(linewidth = 0.8) +
         ggplot2::labs(
-          title    = paste0("Medias de ", toupper(respuesta),
-                            " por ambiente"),
+          title    = paste0("Medias de ", toupper(respuesta), " por ambiente"),
           subtitle = paste0("Diseno: ", diseno),
           x        = toupper(tratamiento),
           y        = paste0("Media estimada - ", toupper(respuesta)),
@@ -309,24 +320,26 @@ inkagro_plot <- function(resultado,
       print(p_ambiente)
     }
   }
-# Exportar figuras si el usuario lo solicita
+
+  # FIX 1, 2, 4: corregido punto en .png, comillas cerradas y typo resolucion
   if (exportar) {
-    cat("\nExportando figuras... \n")
-    for (nombre in names (graficos)) {
-      archivo <- paste0("inkagro_",nombre, "png")
+    cat("\nExportando figuras...\n")
+    for (nombre in names(graficos)) {
+      archivo <- paste0("inkagro_", nombre, ".png")
       ggplot2::ggsave(
         filename = archivo,
-        plot = graficos[[nombre]],
-        dpi = resolucion,
-        width = ancho,
-        height = alto,
-        units = "in"
+        plot     = graficos[[nombre]],
+        dpi      = resolucion,
+        width    = ancho,
+        height   = alto,
+        units    = "in"
       )
-      cat(sprintf("  Guardada: %s (%d dpi, %dx%d in)\n,
-                  archivo, resoluciom,ancho,alto"))
+      cat(sprintf("  Guardada: %s  (%d dpi, %d x %d in)\n",
+                  archivo, resolucion, ancho, alto))
     }
   }
-# Resumen final
+
+  # Resumen final
   n_g <- length(graficos)
   cat(sprintf("\n%d figura(s) generada(s): %s\n",
               n_g, paste(names(graficos), collapse = ", ")))
