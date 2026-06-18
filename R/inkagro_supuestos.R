@@ -1,11 +1,3 @@
-# Convierte p-value a simbolo de significancia estandar
-.ink_signif <- function(p) {
-  ifelse(is.na(p),  "",
-         ifelse(p < 0.001, "***",
-                ifelse(p < 0.01,  "**",
-                       ifelse(p < 0.05,  "*", "ns"))))
-}
-
 inkagro_supuestos <- function(modelo, datos, tratamiento) {
 
   es_lmer <- inherits(modelo, "lmerMod")
