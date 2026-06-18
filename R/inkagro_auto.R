@@ -8,11 +8,16 @@ inkagro_auto <- function(datos, respuesta, tratamiento,
     datos_path <- datos
     extension  <- tolower(tools::file_ext(datos_path))
 
-    if (extension == "csv") {
-      datos <- tryCatch(
-        suppressMessages(read.csv(datos_path)),
-        error = function(e) suppressMessages(read.csv2(datos_path))
-      )
+      if (extension == "csv") {
+        linea_muestra <- readLines(datos_path, n = 2, warn = FALSE)[2]
+        usar_csv2     <- grepl(";", linea_muestra)
+        datos <- tryCatch(
+          suppressMessages(
+            if (usar_csv2) read.csv2(datos_path) else read.csv(datos_path)
+          ),
+          error = function(e) suppressMessages(read.csv2(datos_path))
+        )
+
     } else if (extension %in% c("xlsx", "xls")) {
       datos <- suppressMessages(readxl::read_excel(datos_path))
       nombres_act    <- names(datos)
@@ -63,7 +68,16 @@ inkagro_auto <- function(datos, respuesta, tratamiento,
     } else {
       stop("Formato no soportado. Use: csv, xlsx, xls, txt, rds, sav, dta")
     }
-
+    # Avisar si hay multiples hojas
+    if (extension %in% c("xlsx", "xls")) {
+      hojas <- readxl::excel_sheets(datos_path)
+      if (length(hojas) > 1) {
+        cli::cli_alert_warning(
+          "El archivo tiene {length(hojas)} hojas: {paste(hojas, collapse=', ')}. Se leyo solo '{hojas[1]}'.")
+        cli::cli_alert_info(
+          "Para leer otra hoja: readxl::read_excel('archivo.xlsx', sheet = 'nombre')")
+      }
+    }
     # Detectar titulo en cualquier formato
     nombres_act <- names(datos)
     if (all(grepl("^V\\d+$", nombres_act))) {

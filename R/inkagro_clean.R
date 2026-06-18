@@ -5,6 +5,8 @@ inkagro_clean <- function(datos, verbose = TRUE,
   if (!is.data.frame(datos)) {
     stop("Los datos deben ser un data.frame")
   }
+  # Eliminar filas completamente vacias
+  datos <- datos[rowSums(!is.na(datos)) > 0, ]
 
   # 2. Estandarizar nombres de columnas
   names(datos) <- tolower(trimws(names(datos)))
@@ -26,7 +28,14 @@ inkagro_clean <- function(datos, verbose = TRUE,
 
   # 5. Estandarizar valores de texto en minuscula
   datos <- as.data.frame(lapply(datos, function(x) {
-    if (is.character(x)) gsub("\\s+", "_", tolower(trimws(x))) else x
+    if (is.character(x)) {
+      x <- gsub("\\s+", "_", tolower(trimws(x)))
+      x <- chartr(
+        "áéíóúàèìòùäëïöüâêîôûãõñçÁÉÍÓÚÀÈÌÒÙÄËÏÖÜÂÊÎÔÛÃÕÑÇ",
+        "aeiouaeiouaeiouaeiouaoncAEIOUAEIOUAEIOUAEIOUAONC",
+        x)
+    }
+    x
   }))
 
   # 6. Convertir columnas numericas que llegaron como texto
@@ -78,11 +87,14 @@ inkagro_clean <- function(datos, verbose = TRUE,
   # 8. Tratar valores faltantes
   # NUNCA imputar variables continuas (respuesta, covariables)
   if (imputar != "ninguno") {
-    col_names <- names(datos)
+    col_names   <- names(datos)
+    cols_diseno <- c(pal_bloque, pal_trat, pal_factor,
+                     pal_ambiente, pal_alpha, pal_parcela)
     datos_list <- lapply(col_names, function(col) {
-      x <- datos[[col]]
+      x           <- datos[[col]]
       es_continua <- is.numeric(x) && length(unique(na.omit(x))) > 10
-      if (es_continua) return(x)
+      es_diseno   <- col %in% cols_diseno
+      if (es_continua || es_diseno) return(x)
       if (is.numeric(x) && any(is.na(x))) {
         if (imputar == "media") {
           x[is.na(x)] <- round(mean(x, na.rm = TRUE), 2)
@@ -98,8 +110,8 @@ inkagro_clean <- function(datos, verbose = TRUE,
       }
       return(x)
     })
-    datos           <- as.data.frame(datos_list)
-    names(datos)    <- col_names
+    datos        <- as.data.frame(datos_list)
+    names(datos) <- col_names
   }
 
   # 9. Convertir numericos con pocos niveles a factor
@@ -120,6 +132,13 @@ inkagro_clean <- function(datos, verbose = TRUE,
     col <- col_names_10[idx]
 
     if (is.character(x)) {
+      # Normalizar prefijos compuestos antes de Jaro-Winkler
+      x <- gsub("^(alpha|alfa)[-_]?(\\d+)$", "\\2", x, perl = TRUE)
+      x <- gsub("^(geno|genotipo|gen)[-_]?(\\d+)$", "\\2", x, perl = TRUE)
+      x <- gsub("^(dosis|dos|dose)[-_]?(\\d+)$", "\\2", x, perl = TRUE)
+      x <- gsub("^(sistema|sist|sis)[-_]?(\\d+)$", "\\2", x, perl = TRUE)
+      x <- gsub("^(bloque|blq|blk|rep|block)[-_]?(\\d+)$", "\\2", x, perl = TRUE)
+      x <- gsub("^([a-z]+)[-_](\\d+)$", "\\1\\2", x, perl = TRUE)
       niveles <- unique(na.omit(x))
 
       # Mapear abreviaturas de una sola letra
