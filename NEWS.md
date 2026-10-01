@@ -19,3 +19,6 @@
   la línea de código para repetirlo.
 * `informe()`: documento de Word con tablas y figuras numeradas.
 * Si el archivo no existe, se busca en Descargas, Escritorio y Documentos.
+* `asistente()`: reconoce variables medidas, factores, bloques y localidades
+  y pregunta en lenguaje de campo; imprime el código para repetir el
+  análisis. `leer_datos()` exporta el lector de archivos.

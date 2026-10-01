@@ -229,3 +229,76 @@ test_that("graficos nuevos y menu fuera de sesion interactiva", {
 test_that("si el archivo no existe, sugiere usar la ruta completa", {
   expect_error(inkagro("no_existe_123.xlsx", "y", "t"), "file.choose")
 })
+
+# Respuestas simuladas para el asistente: cada llamada devuelve la siguiente.
+respuestas <- function(...) {
+  cola <- list(...)
+  function(titulo, opciones, multiple = FALSE) {
+    r <- cola[[1]]
+    cola[[1]] <<- NULL
+    if (is.character(r)) match(r, sub("  \\(.*$", "", opciones)) else r
+  }
+}
+
+test_that("el asistente clasifica columnas y arma parcelas divididas", {
+  skip_if_not_installed("nlme")
+  o <- as.data.frame(nlme::Oats)
+  o$Notas <- ""
+  cls <- InkAgro:::.ink_clasificar(o)
+  expect_equal(cls$medidas, "yield")
+  expect_setequal(cls$factores, c("Block", "Variety", "nitro"))
+  expect_true("Notas" %in% cls$ignoradas)
+  mensajes <- character()
+  res <- InkAgro:::.ink_asistente(
+    o, "avena",
+    respuestas("Block", c("Variety", "nitro"),
+               "Un factor en parcelas grandes y el otro dentro de ellas",
+               "Variety", "No"),
+    decir = function(m) mensajes <<- c(mensajes, m))
+  expect_s3_class(res, "inkagro")
+  expect_equal(res$diseno, "pd")
+  expect_equal(round(res$anova$F[res$anova$termino == "A"], 3), 1.485)
+  expect_true(any(grepl("diseno = \"parcelas_divididas\"", mensajes)))
+})
+
+test_that("el asistente filtra una localidad y explica cuando no se sabe", {
+  set.seed(3)
+  d <- expand.grid(gen = paste0("G", 1:4), rep = c("R1", "R2", "R3"),
+                   localidad = c("Chachapoyas", "Rioja"))
+  d$rendimiento <- round(rnorm(nrow(d), 5, 1), 3)
+  mensajes <- character()
+  res <- InkAgro:::.ink_asistente(
+    d, "d", respuestas("Rioja", "rep", "No"),
+    decir = function(m) mensajes <<- c(mensajes, m))
+  expect_equal(res$diseno, "dbca")
+  expect_equal(res$n, 12)
+  expect_true(any(grepl("subset\\(d, localidad == \"Rioja\"\\)", mensajes)))
+
+  d2 <- npk
+  mensajes <- character()
+  out <- InkAgro:::.ink_asistente(
+    d2, "npk", respuestas("block", c("N", "P"), "No sé"),
+    decir = function(m) mensajes <<- c(mensajes, m))
+  expect_null(out)
+  expect_true(any(grepl("PARCELAS DIVIDIDAS", mensajes)))
+})
+
+test_that("asistente() y leer_datos() fuera de sesion interactiva", {
+  expect_error(asistente(PlantGrowth), "interactiva")
+  f <- tempfile(fileext = ".csv")
+  on.exit(unlink(f))
+  utils::write.csv2(PlantGrowth, f, row.names = FALSE)
+  expect_equal(nrow(leer_datos(f)), 30)
+})
+
+test_that("el asistente pide confirmar si el bloque elegido no es el sugerido", {
+  skip_if_not_installed("nlme")
+  o <- as.data.frame(nlme::Oats)
+  res <- InkAgro:::.ink_asistente(
+    o, "avena",
+    respuestas("Variety", "Usar 'Block' como bloque", c("Variety", "nitro"),
+               "Todas las combinaciones sorteadas juntas, parcela por parcela", "No"),
+    decir = function(m) NULL)
+  expect_equal(res$nombres$bloque, "Block")
+  expect_equal(res$diseno, "factorial")
+})
