@@ -61,7 +61,8 @@ plot.inkagro <- function(x, comparacion = NULL,
   }
 
   g <- g + .ink_tema(fuente, tamano)
-  if (tipo != "interaccion" && nlevels(g$data$nivel) > 8L) {
+  if (tipo != "interaccion" && nlevels(g$data$nivel) > 8L &&
+      nlevels(g$data$nivel) <= 15L) {
     g <- g + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
   }
   if (!is.null(archivo)) {
@@ -101,6 +102,21 @@ plot.inkagro <- function(x, comparacion = NULL,
 
 .ink_graf_barras <- function(x, m, borde, relleno) {
   m$tope <- m$media + m$ee
+  if (nrow(m) > 15L) {
+    # Muchos niveles (genotipos): barras horizontales ordenadas por la media,
+    # para que nombres y letras se lean.
+    m$nivel <- factor(as.character(m$nivel), levels = m$nivel[order(m$media)])
+    return(
+      ggplot2::ggplot(m, ggplot2::aes(x = media, y = nivel)) +
+        ggplot2::geom_col(fill = relleno, colour = borde, width = 0.7, linewidth = 0.3) +
+        ggplot2::geom_errorbar(ggplot2::aes(xmin = media - ee, xmax = media + ee),
+                               width = 0.3, colour = borde, linewidth = 0.3) +
+        ggplot2::geom_text(ggplot2::aes(x = tope, label = grupo), hjust = -0.25,
+                           family = "serif", size = 2.8) +
+        ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = c(0, 0.15))) +
+        ggplot2::labs(y = attr(m, "titulo"), x = x$nombres$respuesta)
+    )
+  }
   ggplot2::ggplot(m, ggplot2::aes(x = nivel, y = media)) +
     ggplot2::geom_col(fill = relleno, colour = borde, width = 0.6, linewidth = 0.4) +
     ggplot2::geom_errorbar(ggplot2::aes(ymin = media - ee, ymax = media + ee),

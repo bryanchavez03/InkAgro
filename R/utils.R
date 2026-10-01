@@ -80,6 +80,7 @@
 # guarda en el atributo "unificados" que se unio, para avisarlo. Si todos
 # los niveles son numeros (dosis, por ejemplo), los ordena numericamente.
 .ink_factor <- function(x) {
+  orden_original <- if (is.factor(x)) levels(x) else NULL
   x <- gsub("\\s+", " ", trimws(as.character(x)))
   x[x == ""] <- NA
   ok <- !is.na(x)
@@ -103,7 +104,15 @@
   }
 
   niveles <- unique(x[ok])
-  niveles <- if (es_numerico) niveles[order(as.numeric(niveles))] else sort(niveles)
+  if (es_numerico) {
+    niveles <- niveles[order(as.numeric(niveles))]
+  } else if (!is.null(orden_original)) {
+    # Respeta el orden que el usuario ya dio al factor (p. ej. bajo, medio, alto)
+    pos <- match(niveles, gsub("\\s+", " ", trimws(orden_original)))
+    niveles <- niveles[order(is.na(pos), pos, niveles)]
+  } else {
+    niveles <- sort(niveles)
+  }
   f <- factor(x, levels = niveles)
   attr(f, "unificados") <- unificados
   f

@@ -179,3 +179,14 @@ test_that("informe() crea un Word y plot() hace el grafico de interaccion", {
   dca <- inkagro(PlantGrowth, "weight", "group", diseno = "dca")
   expect_error(plot(dca, tipo = "interaccion"), "dos factores")
 })
+
+test_that("respeta el orden de niveles de un factor y muchos niveles van horizontales", {
+  res <- inkagro(warpbreaks, "breaks", "tension", factor_b = "wool",
+                 diseno = "factorial")
+  expect_equal(levels(res$datos$A), c("L", "M", "H"))
+  set.seed(2)
+  d <- data.frame(gen = rep(sprintf("G%02d", 1:20), 3), rep = rep(1:3, each = 20))
+  d$y <- rnorm(60, 10)
+  g <- plot(inkagro(d, "y", "gen", bloque = "rep", diseno = "dbca"))
+  expect_match(deparse(g$mapping$y), "nivel")
+})
