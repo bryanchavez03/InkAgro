@@ -122,9 +122,14 @@ inkagro <- function(datos, respuesta, tratamiento,
 
   d <- data.frame(.fila = seq_len(nrow(crudo)),
                   y     = .ink_numerica(crudo[[nm$respuesta]], nm$respuesta))
-  d$A <- .ink_factor(crudo[[nm$tratamiento]])
-  if (!is.null(nm$factor_b)) d$B   <- .ink_factor(crudo[[nm$factor_b]])
-  if (!is.null(nm$bloque))   d$blq <- .ink_factor(crudo[[nm$bloque]])
+  for (rol in c("A", "B", "blq")) {
+    columna <- nm[[c(A = "tratamiento", B = "factor_b", blq = "bloque")[[rol]]]]
+    if (is.null(columna)) next
+    f <- .ink_factor(crudo[[columna]])
+    avisos <- c(avisos, .ink_aviso_unificados(f, columna))
+    attr(f, "unificados") <- NULL
+    d[[rol]] <- f
+  }
 
   completos <- stats::complete.cases(d)
   if (!any(completos)) {

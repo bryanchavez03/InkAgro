@@ -75,19 +75,46 @@
   y
 }
 
-# Convierte a factor; si todos los niveles son numeros (dosis, por ejemplo),
-# los ordena numericamente en vez de alfabeticamente.
+# Convierte a factor. Unifica etiquetas que solo difieren en mayusculas,
+# espacios o coma decimal ("Golden Rain" / "golden rain ", "0,2" / "0.2") y
+# guarda en el atributo "unificados" que se unio, para avisarlo. Si todos
+# los niveles son numeros (dosis, por ejemplo), los ordena numericamente.
 .ink_factor <- function(x) {
-  x <- trimws(as.character(x))
+  x <- gsub("\\s+", " ", trimws(as.character(x)))
   x[x == ""] <- NA
-  niveles <- unique(stats::na.omit(x))
-  num <- suppressWarnings(as.numeric(niveles))
-  if (length(niveles) && !anyNA(num)) {
-    niveles <- niveles[order(num)]
-  } else {
-    niveles <- sort(niveles)
+  ok <- !is.na(x)
+  coma <- ok & grepl("^-?[0-9]*,[0-9]+$", x)
+  x[coma] <- sub(",", ".", x[coma], fixed = TRUE)
+  num <- suppressWarnings(as.numeric(x))
+  es_numerico <- any(ok) && !anyNA(num[ok])
+  if (es_numerico) x[ok] <- as.character(num[ok])
+
+  unificados <- character()
+  clave <- tolower(x)
+  for (k in unique(clave[ok])) {
+    sel <- ok & clave == k
+    variantes <- sort(table(x[sel]), decreasing = TRUE)
+    if (length(variantes) > 1L) {
+      canon <- names(variantes)[1L]
+      x[sel] <- canon
+      unificados <- c(unificados, sprintf(
+        "%s -> '%s'", paste0("'", names(variantes)[-1L], "'", collapse = ", "), canon))
+    }
   }
-  factor(x, levels = niveles)
+
+  niveles <- unique(x[ok])
+  niveles <- if (es_numerico) niveles[order(as.numeric(niveles))] else sort(niveles)
+  f <- factor(x, levels = niveles)
+  attr(f, "unificados") <- unificados
+  f
+}
+
+.ink_aviso_unificados <- function(f, nombre) {
+  u <- attr(f, "unificados")
+  if (!length(u)) return(character())
+  sprintf(paste0("En '%s' se unieron etiquetas que solo difer\u00edan en ",
+                 "may\u00fasculas o espacios: %s. Revisa que sean el mismo nivel."),
+          nombre, paste(u, collapse = "; "))
 }
 
 .ink_lista <- function(x, max = 10L) {

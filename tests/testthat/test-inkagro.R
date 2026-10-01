@@ -150,3 +150,15 @@ test_that("print, as.data.frame y plot funcionan", {
   expect_s3_class(plot(res), "ggplot")
   expect_s3_class(plot(res, tipo = "cajas", comparacion = "P"), "ggplot")
 })
+
+test_that("unifica etiquetas que difieren en mayusculas, espacios o coma decimal", {
+  d <- PlantGrowth
+  d$group <- as.character(d$group)
+  d$group[d$group == "trt1"][1:3] <- c("TRT1", " trt1", "Trt1 ")
+  d$dosis <- rep(c("0.2", "0,2", "0.20"), 10)
+  res <- inkagro(d, "weight", "group", diseno = "dca")
+  expect_equal(nlevels(res$datos$A), 3)
+  expect_match(res$avisos, "se unieron etiquetas", all = FALSE)
+  f <- InkAgro:::.ink_factor(d$dosis)
+  expect_equal(levels(f), "0.2")
+})
