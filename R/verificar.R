@@ -82,6 +82,11 @@
 # Busca una columna no usada que explique las repeticiones dentro de las
 # celdas. Con ambiente = TRUE solo considera columnas cuyo nombre indica
 # localidad, ambiente o ano; con FALSE, cualquier otra columna.
+.ink_pal_submuestra <- function() {
+  c("muestra", "muestras", "submuestra", "sample", "subsample", "planta",
+    "plantas", "plant", "individuo", "lectura", "medicion", "unit", "unidad")
+}
+
 .ink_pal_ambiente <- function() {
   unique(c(pal_ambiente, pal_year, "county", "localidad", "locality",
            "ambiente", "ambientes", "region", "provincia", "distrito", "zona",
@@ -90,7 +95,7 @@
 }
 
 .ink_buscar_explicacion <- function(celda, otras, ambiente) {
-  es_amb <- tolower(trimws(names(otras))) %in% .ink_pal_ambiente()
+  es_amb <- .ink_norm(names(otras)) %in% .ink_pal_ambiente()
   candidatas <- names(otras)[if (ambiente) es_amb else !es_amb]
   for (col in candidatas) {
     v <- otras[[col]]
@@ -119,7 +124,7 @@
                         min(n), max(n)))
   }
   # Hay una columna que parece de bloques y se esta ignorando?
-  sospechosas <- names(otras)[tolower(trimws(names(otras))) %in% pal_bloque]
+  sospechosas <- names(otras)[.ink_norm(names(otras)) %in% pal_bloque]
   for (col in sospechosas) {
     v <- otras[[col]][d$.fila]
     k <- length(unique(stats::na.omit(v)))

@@ -112,14 +112,15 @@ leer_datos <- function(archivo) {
   # 2. Localidades / ambientes: se analiza uno a la vez
   filtro <- NULL
   for (col in cls$ambientes) {
-    niveles <- sort(unique(stats::na.omit(as.character(crudo[[col]]))))
+    amb <- .ink_factor(crudo[[col]])
+    niveles <- levels(amb)
     i <- preguntar(sprintf(paste0(
       "Tus datos tienen %d niveles en '%s' (localidades, ambientes o a\u00f1os). ",
       "InkAgro analiza uno a la vez. \u00bfCu\u00e1l quieres analizar?"),
       length(niveles), col), niveles, FALSE)
     if (!length(i) || i == 0L) return(cancelar())
     filtro <- list(columna = col, valor = niveles[i])
-    crudo <- crudo[!is.na(crudo[[col]]) & as.character(crudo[[col]]) == niveles[i], , drop = FALSE]
+    crudo <- crudo[!is.na(amb) & amb == niveles[i], , drop = FALSE]
     break
   }
 
@@ -130,7 +131,7 @@ leer_datos <- function(archivo) {
   }
 
   # 3. Bloques
-  sugeridos <- candidatos[tolower(trimws(candidatos)) %in% pal_bloque]
+  sugeridos <- candidatos[.ink_norm(candidatos) %in% pal_bloque]
   orden <- c(sugeridos, setdiff(candidatos, sugeridos))
   etiquetas <- c(ifelse(orden %in% sugeridos, paste0(orden, "  (parece de bloques)"), orden),
                  "Ninguna: no hubo bloques")
@@ -167,24 +168,63 @@ leer_datos <- function(archivo) {
     if (!length(idx) || all(idx == 0L)) return(cancelar())
     factores <- resto[idx]
   }
-  # Si eligio un solo factor y otro factor explica las repeticiones dentro de
-  # cada bloque (o de cada tratamiento), probablemente tambien lo comparo.
-  if (length(factores) == 1L) {
-    f1 <- .ink_factor(crudo[[factores]])
-    unidad <- if (is.null(bloque)) f1 else interaction(f1, .ink_factor(crudo[[bloque]]), drop = TRUE)
+  # Si otra columna explica las repeticiones dentro de cada bloque (o de
+  # cada tratamiento), probablemente tambien es un factor del experimento.
+  if (length(factores) <= 2L) {
+    fs <- lapply(c(factores, bloque), function(cc) .ink_factor(crudo[[cc]]))
+    unidad <- interaction(fs, drop = TRUE)
     if (any(table(unidad) > 1L)) {
       for (otro in setdiff(resto, factores)) {
         v <- .ink_factor(crudo[[otro]])
         ok <- !is.na(unidad) & !is.na(v)
         if (!any(ok) || max(table(droplevels(unidad[ok]), droplevels(v[ok]))) != 1L) next
+        veces <- max(table(droplevels(unidad[ok])))
+        donde <- if (is.null(bloque)) "en tus datos" else "dentro de cada bloque"
+        if (!is.null(bloque) && .ink_norm(otro) %in% pal_bloque) {
+          decir(sprintf(paste0(
+            "\nLos bloques de '%s' se repiten dentro de cada nivel de '%s': ",
+            "cada repetici\u00f3n est\u00e1 dividida en bloques peque\u00f1os que no tienen ",
+            "todos los tratamientos. Es un dise\u00f1o de bloques incompletos ",
+            "(por ejemplo alfa-l\u00e1tice), que InkAgro 0.1 a\u00fan no analiza.\n\n",
+            "Opci\u00f3n v\u00e1lida mientras tanto: analizarlo como bloques completos ",
+            "usando '%s' como bloque (pierde algo de precisi\u00f3n, pero es ",
+            "correcto). Vuelve a correr el asistente y elige '%s' como bloque."),
+            bloque, otro, otro, otro))
+          return(invisible(NULL))
+        }
+        if (.ink_norm(otro) %in% .ink_pal_submuestra()) {
+          decir(sprintf(paste0(
+            "\nCada parcela tiene %d mediciones (columna '%s'). Son submuestras de ",
+            "la misma parcela, no repeticiones: si se analizan como tales, el ",
+            "error se subestima y aparecen diferencias falsas.\n\nPromedia las ",
+            "mediciones de cada parcela y vuelve a correr el asistente con ese ",
+            "archivo, por ejemplo:\n%s",
+            "  promedios <- aggregate(`%s` ~ %s, data = datos, FUN = mean)\n",
+            "  res <- asistente(promedios)"),
+            veces, otro,
+            if (is.character(datos)) paste0("  datos <- leer_datos(\"", fuente, "\")\n") else "",
+            respuesta,
+            paste0("`", c(bloque, factores), "`", collapse = " + ")))
+          return(invisible(NULL))
+        }
+        if (length(factores) == 2L) {
+          decir(sprintf(paste0(
+            "\nCada combinaci\u00f3n de '%s' y '%s' aparece %d veces %s, una con cada ",
+            "nivel de '%s'. Eso indica un tercer factor en el experimento, y ",
+            "InkAgro 0.1 analiza hasta dos. Ignorarlo sumar\u00eda sus diferencias ",
+            "al error y el an\u00e1lisis saldr\u00eda mal.\n\nOpci\u00f3n: analiza ",
+            "cada nivel de '%s' por separado, por ejemplo:\n  ",
+            "res <- inkagro(subset(datos, %s == \"%s\"), ...)"),
+            factores[1L], factores[2L], veces, donde, otro, otro, otro,
+            as.character(levels(v)[1L])))
+          return(invisible(NULL))
+        }
         j <- preguntar(sprintf(paste0(
           "Cada nivel de '%s' aparece %d veces %s, una con cada nivel de '%s'. ",
           "Eso indica que '%s' tambi\u00e9n es un factor del experimento. ",
           "Si lo ignoras, sus diferencias se suman al error y el an\u00e1lisis ",
           "sale mal. \u00bfTambi\u00e9n comparaste '%s'?"),
-          factores, max(table(droplevels(unidad[ok]))),
-          if (is.null(bloque)) "en tus datos" else "dentro de cada bloque",
-          otro, otro, otro),
+          factores, veces, donde, otro, otro, otro),
           c(sprintf("S\u00ed, tambi\u00e9n compar\u00e9 '%s'", otro),
             sprintf("No, analizar solo '%s'", factores)), FALSE)
         if (!length(j) || j == 0L) return(cancelar())
@@ -274,8 +314,9 @@ leer_datos <- function(archivo) {
   n <- nrow(crudo)
   medidas <- factores <- ambientes <- ignoradas <- character()
   es_nota <- function(nombre) {
-    grepl("^obs|nota|coment|fecha|date|remark|^id$|^codigo|^code", tolower(trimws(nombre))) ||
-      tolower(trimws(nombre)) %in% cols_excluir
+    z <- .ink_norm(nombre)
+    grepl("^obs|nota|coment|^fecha$|^date$|remark|^id$|^codigo|^code", z) ||
+      z %in% cols_excluir
   }
   for (col in names(crudo)) {
     v <- crudo[[col]]
@@ -289,11 +330,19 @@ leer_datos <- function(archivo) {
     k <- length(unique(stats::na.omit(tolower(gsub("\\s+", " ", texto)))))
     num <- suppressWarnings(as.numeric(gsub(",", ".", texto, fixed = TRUE)))
     es_num <- mean(is.na(num[!is.na(texto)])) < 0.05
-    if (es_num && k > max(8, 0.25 * llenos)) {
+    # Posiciones en el campo (fila, columna, numero de parcela): enteros que
+    # se repiten el mismo numero de veces o que no se repiten nunca.
+    enteros <- es_num && all(num[!is.na(num)] == round(num[!is.na(num)]))
+    es_posicion <- .ink_norm(col) %in% c(pal_fila, pal_columna, pal_parcela) ||
+      (enteros && k > 8 && length(unique(as.integer(table(num)))) == 1L &&
+         diff(range(num, na.rm = TRUE)) + 1 == k)
+    if (es_posicion) {
+      ignoradas <- c(ignoradas, col)
+    } else if (es_num && k > max(8, 0.25 * llenos)) {
       medidas <- c(medidas, col)
     } else if (k < 2L || k > n / 2) {
       ignoradas <- c(ignoradas, col)
-    } else if (tolower(trimws(col)) %in% .ink_pal_ambiente()) {
+    } else if (.ink_norm(col) %in% .ink_pal_ambiente()) {
       ambientes <- c(ambientes, col)
     } else {
       factores <- c(factores, col)
@@ -327,7 +376,9 @@ leer_datos <- function(archivo) {
     objeto <- "datos"
   }
   if (!is.null(filtro)) {
-    objeto <- paste0("subset(", objeto, ", ", filtro$columna, " == ", cita(filtro$valor), ")")
+    # Compara sin mayusculas ni espacios, igual que hace el asistente
+    objeto <- paste0("subset(", objeto, ", tolower(trimws(`", filtro$columna, "`)) == ",
+                     cita(tolower(filtro$valor)), ")")
   }
   args <- c(objeto, paste0("respuesta = ", cita(respuesta)),
             paste0("tratamiento = ", cita(tratamiento)),

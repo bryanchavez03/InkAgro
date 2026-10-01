@@ -275,7 +275,7 @@ test_that("el asistente filtra una localidad y explica cuando no se sabe", {
     decir = function(m) mensajes <<- c(mensajes, m))
   expect_equal(res$diseno, "dbca")
   expect_equal(res$n, 12)
-  expect_true(any(grepl("subset\\(d, localidad == \"Rioja\"\\)", mensajes)))
+  expect_true(any(grepl("subset\\(d, tolower\\(trimws\\(`localidad`\\)\\) == \"rioja\"\\)", mensajes)))
 
   d2 <- npk
   mensajes <- character()
@@ -322,4 +322,49 @@ test_that("si elige un solo factor y hay otro cruzado, el asistente pregunta", {
   expect_true(any(grepl("Tambi\u00e9n comparaste 'Variety'", titulos)))
   expect_equal(res$diseno, "pd")
   expect_equal(res$nombres$tratamiento, "Variety")
+})
+
+test_that("clasificacion: posiciones, tildes, fechas de siembra y localidades", {
+  d <- data.frame(Parcela = 1:24, Fila = rep(1:12, 2),
+                  "Repetición" = rep(c("I", "II"), each = 12),
+                  "Fecha de siembra" = rep(c("15-oct", "30-oct"), 12),
+                  Rendimiento = seq(1000, by = 7, length.out = 24),
+                  check.names = FALSE)
+  cls <- InkAgro:::.ink_clasificar(d)
+  expect_equal(cls$medidas, "Rendimiento")      # enteros no consecutivos: medida
+  expect_true(all(c("Parcela", "Fila") %in% cls$ignoradas))
+  expect_true("Fecha de siembra" %in% cls$factores)
+  expect_true("Repetición" %in% cls$factores)
+
+  set.seed(4)
+  m <- expand.grid(gen = paste0("G", 1:4), rep = c("R1", "R2", "R3"),
+                   Localidad = c("Chachapoyas", "Rioja"))
+  m$Localidad <- as.character(m$Localidad)
+  m$Localidad[c(13, 20)] <- c("rioja", " RIOJA ")
+  m$y <- round(rnorm(nrow(m), 5), 3)
+  mensajes <- character()
+  res <- InkAgro:::.ink_asistente(
+    m, "m", respuestas("Rioja", "rep", "Terminar", "No"),
+    decir = function(x) mensajes <<- c(mensajes, x))
+  expect_equal(res$n, 12)
+  expect_true(any(grepl("tolower\\(trimws\\(`Localidad`\\)\\) == \"rioja\"", mensajes)))
+})
+
+test_that("el asistente explica bloques incompletos anidados y submuestras", {
+  d <- expand.grid(gen = paste0("G", 1:4), Bloque = c("B1", "B2"), Rep = c("R1", "R2"))
+  d$y <- seq_len(nrow(d)) + c(0.3, -0.2, 0.1, 0)
+  mensajes <- character()
+  out <- InkAgro:::.ink_asistente(d, "d", respuestas("Bloque", "gen"),
+                                  decir = function(x) mensajes <<- c(mensajes, x))
+  expect_null(out)
+  expect_true(any(grepl("bloques incompletos", mensajes)))
+
+  s <- expand.grid(Muestra = 1:2, trat = c("a", "b", "c"), Bloque = c("I", "II", "III"))
+  set.seed(5)
+  s$altura <- round(rnorm(nrow(s), 50, 5), 2)
+  mensajes <- character()
+  out <- InkAgro:::.ink_asistente(s, "s", respuestas("Bloque", "trat"),
+                                  decir = function(x) mensajes <<- c(mensajes, x))
+  expect_null(out)
+  expect_true(any(grepl("submuestras", mensajes)))
 })

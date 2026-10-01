@@ -32,6 +32,14 @@
   as.data.frame(leido)
 }
 
+# Normaliza un nombre de columna para compararlo con los diccionarios:
+# minusculas, sin tildes, espacios y puntos como guion bajo.
+.ink_norm <- function(z) {
+  z <- tolower(trimws(z))
+  z <- chartr("\u00e1\u00e9\u00ed\u00f3\u00fa\u00fc\u00f1", "aeiouun", z)
+  gsub("[ .]+", "_", z)
+}
+
 # Mensaje cuando el archivo no existe: lo busca por nombre en la carpeta de
 # trabajo y en Descargas, Escritorio y Documentos, y sugiere la ruta.
 .ink_no_encontrado <- function(ruta) {
