@@ -135,7 +135,8 @@
 
 .ink_etiquetas <- function(termino, nm, codigo) {
   mapa <- c(
-    blq       = paste0("Bloque (", nm$bloque, ")"),
+    blq       = if (is.null(nm$bloque) || tolower(nm$bloque) %in% c("bloque", "bloques"))
+                  "Bloques" else paste0("Bloques (", nm$bloque, ")"),
     A         = nm$tratamiento,
     B         = if (is.null(nm$factor_b)) "B" else nm$factor_b,
     "A:B"     = paste(nm$tratamiento, "x", if (is.null(nm$factor_b)) "B" else nm$factor_b),

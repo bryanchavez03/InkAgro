@@ -138,8 +138,11 @@ inkagro <- function(datos, respuesta, tratamiento,
   }
   if (any(!completos)) {
     avisos <- c(avisos, sprintf(
-      "Se excluyeron %d fila(s) con datos faltantes en las columnas analizadas (filas %s).",
-      sum(!completos), .ink_lista(d$.fila[!completos])))
+      "Se %s %d %s con datos faltantes en las columnas analizadas (%s %s).",
+      if (sum(!completos) == 1L) "excluy\u00f3" else "excluyeron",
+      sum(!completos), if (sum(!completos) == 1L) "fila" else "filas",
+      if (sum(!completos) == 1L) "fila" else "filas",
+      .ink_lista(d$.fila[!completos])))
   }
   d <- droplevels(d[completos, , drop = FALSE])
   otras <- crudo[, setdiff(names(crudo), usados), drop = FALSE]
@@ -157,8 +160,11 @@ inkagro <- function(datos, respuesta, tratamiento,
     }, error = function(e) list(ok = FALSE, msg = conditionMessage(e)))
     if (reintento$ok) {
       avisos <- c(avisos, sprintf(
-        "Se excluyeron %d valor(es) at\u00edpico(s) (filas %s) y se repiti\u00f3 el an\u00e1lisis sin ellos.",
-        nrow(atip), .ink_lista(atip$fila)), reintento$av)
+        "Se %s %d %s (%s %s) y se repiti\u00f3 el an\u00e1lisis sin %s.",
+        if (nrow(atip) == 1L) "excluy\u00f3" else "excluyeron", nrow(atip),
+        if (nrow(atip) == 1L) "valor at\u00edpico" else "valores at\u00edpicos",
+        if (nrow(atip) == 1L) "fila" else "filas", .ink_lista(atip$fila),
+        if (nrow(atip) == 1L) "\u00e9l" else "ellos"), reintento$av)
       d      <- d2
       ajuste <- reintento$ajuste
     } else {

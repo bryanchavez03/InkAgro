@@ -121,7 +121,7 @@ test_that("los atipicos se marcan por defecto y se excluyen solo si se pide", {
   expect_equal(marcado$n, 30)
   excluido <- inkagro(d, "weight", "group", diseno = "dca", outliers = "excluir")
   expect_equal(excluido$n, 29)
-  expect_match(excluido$avisos, "Se excluyeron 1 valor", all = FALSE)
+  expect_match(excluido$avisos, "Se excluy\u00f3 1 valor at\u00edpico", all = FALSE)
 })
 
 test_that("filas con faltantes se excluyen y se reportan", {
@@ -129,6 +129,7 @@ test_that("filas con faltantes se excluyen y se reportan", {
   d$weight[c(2, 15)] <- NA
   res <- inkagro(d, "weight", "group", diseno = "dca")
   expect_equal(res$n, 28)
+  expect_match(res$avisos, "Se excluyeron 2 filas", all = FALSE)
   expect_match(res$avisos, "filas 2, 15", all = FALSE)
 })
 
@@ -161,4 +162,20 @@ test_that("unifica etiquetas que difieren en mayusculas, espacios o coma decimal
   expect_match(res$avisos, "se unieron etiquetas", all = FALSE)
   f <- InkAgro:::.ink_factor(d$dosis)
   expect_equal(levels(f), "0.2")
+})
+
+test_that("informe() crea un Word y plot() hace el grafico de interaccion", {
+  skip_if_not_installed("officer")
+  skip_if_not_installed("flextable")
+  res <- inkagro(npk, "yield", "N", factor_b = "P", bloque = "block",
+                 diseno = "factorial")
+  f <- tempfile(fileext = ".docx")
+  on.exit(unlink(f))
+  informe(res, f)
+  expect_true(file.exists(f))
+  expect_gt(file.size(f), 10000)
+  expect_s3_class(plot(res, tipo = "interaccion"), "ggplot")
+  expect_s3_class(plot(res, estilo = "color"), "ggplot")
+  dca <- inkagro(PlantGrowth, "weight", "group", diseno = "dca")
+  expect_error(plot(dca, tipo = "interaccion"), "dos factores")
 })
