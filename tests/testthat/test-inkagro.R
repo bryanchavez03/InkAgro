@@ -253,12 +253,15 @@ test_that("el asistente clasifica columnas y arma parcelas divididas", {
     o, "avena",
     respuestas("Block", c("Variety", "nitro"),
                "Un factor en parcelas grandes y el otro dentro de ellas",
-               "Variety", "No"),
+               "Variety", "Barras con error est\u00e1ndar y letras", "nitro",
+               "Curva dosis-respuesta (factor cuantitativo)", "Terminar", "No"),
     decir = function(m) mensajes <<- c(mensajes, m))
   expect_s3_class(res, "inkagro")
   expect_equal(res$diseno, "pd")
   expect_equal(round(res$anova$F[res$anova$termino == "A"], 3), 1.485)
   expect_true(any(grepl("diseno = \"parcelas_divididas\"", mensajes)))
+  expect_true(any(grepl("plot\\(res, comparacion = \"nitro\", tipo = \"barras\"\\)", mensajes)))
+  expect_true(any(grepl("tipo = \"regresion\"", mensajes)))
 })
 
 test_that("el asistente filtra una localidad y explica cuando no se sabe", {
@@ -268,7 +271,7 @@ test_that("el asistente filtra una localidad y explica cuando no se sabe", {
   d$rendimiento <- round(rnorm(nrow(d), 5, 1), 3)
   mensajes <- character()
   res <- InkAgro:::.ink_asistente(
-    d, "d", respuestas("Rioja", "rep", "No"),
+    d, "d", respuestas("Rioja", "rep", "Terminar", "No"),
     decir = function(m) mensajes <<- c(mensajes, m))
   expect_equal(res$diseno, "dbca")
   expect_equal(res$n, 12)
@@ -297,7 +300,8 @@ test_that("el asistente pide confirmar si el bloque elegido no es el sugerido", 
   res <- InkAgro:::.ink_asistente(
     o, "avena",
     respuestas("Variety", "Usar 'Block' como bloque", c("Variety", "nitro"),
-               "Todas las combinaciones sorteadas juntas, parcela por parcela", "No"),
+               "Todas las combinaciones sorteadas juntas, parcela por parcela",
+               "Terminar", "No"),
     decir = function(m) NULL)
   expect_equal(res$nombres$bloque, "Block")
   expect_equal(res$diseno, "factorial")
@@ -309,7 +313,7 @@ test_that("si elige un solo factor y hay otro cruzado, el asistente pregunta", {
   titulos <- character()
   fake <- respuestas("Block", "nitro", 1L,
                      "Un factor en parcelas grandes y el otro dentro de ellas",
-                     "Variety", "No")
+                     "Variety", "Terminar", "No")
   espia <- function(titulo, opciones, multiple = FALSE) {
     titulos <<- c(titulos, titulo)
     fake(titulo, opciones, multiple)

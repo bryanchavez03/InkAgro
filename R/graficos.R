@@ -345,6 +345,12 @@ graficos <- function(x) {
     stop("graficos() pregunta en la consola y solo funciona en una sesi\u00f3n ",
          "interactiva. En un script usa plot(res, tipo = ...).", call. = FALSE)
   }
+  .ink_menu_graficos(x, deparse(substitute(x)), .ink_preguntar_consola, message)
+}
+
+# Menu de graficos reutilizado por graficos() y asistente(): dibuja el
+# elegido, imprime la linea de codigo y vuelve a preguntar hasta "Terminar".
+.ink_menu_graficos <- function(x, objeto, preguntar, decir) {
   opciones <- c(barras = "Barras con error est\u00e1ndar y letras",
                 puntos = "Puntos con intervalo de confianza y letras",
                 cajas  = "Cajas con los datos",
@@ -356,33 +362,43 @@ graficos <- function(x) {
   }
   validas <- names(x$regresion)[vapply(x$regresion, function(r) is.null(r$nota), logical(1))]
   if (!length(validas)) opciones <- opciones[names(opciones) != "regresion"]
+  etiquetas <- c(unname(opciones), "Terminar")
+  ultimo <- NULL
 
-  i <- utils::menu(unname(opciones), title = "\u00bfQu\u00e9 gr\u00e1fico quieres?")
-  if (i == 0L) return(invisible(NULL))
-  tipo <- names(opciones)[i]
+  repeat {
+    i <- preguntar(if (is.null(ultimo)) "\u00bfQu\u00e9 gr\u00e1fico quieres ver?"
+                   else "\u00bfQuieres ver otro gr\u00e1fico?", etiquetas, FALSE)
+    if (!length(i) || i == 0L || i > length(opciones)) break
+    tipo <- names(opciones)[i]
 
-  comparacion <- NULL
-  if (tipo %in% c("barras", "puntos", "cajas") && length(x$medias) > 1L) {
-    nombres <- names(x$medias)
-    if (tipo == "cajas") {
-      nombres <- nombres[vapply(x$medias, function(m) attr(m, "factor") %in% c("A", "B"), logical(1))]
+    comparacion <- NULL
+    if (tipo %in% c("barras", "puntos", "cajas") && length(x$medias) > 1L) {
+      nombres <- names(x$medias)
+      if (tipo == "cajas") {
+        nombres <- nombres[vapply(x$medias, function(m) attr(m, "factor") %in% c("A", "B"), logical(1))]
+      }
+      j <- if (length(nombres) > 1L) preguntar("\u00bfDe qu\u00e9 factor?", nombres, FALSE) else 1L
+      if (!length(j) || j == 0L || j > length(nombres)) next
+      comparacion <- nombres[j]
+    } else if (tipo == "regresion" && length(validas) > 1L) {
+      j <- preguntar("\u00bfDe qu\u00e9 factor?", validas, FALSE)
+      if (!length(j) || j == 0L || j > length(validas)) next
+      comparacion <- validas[j]
     }
-    j <- if (length(nombres) > 1L) utils::menu(nombres, title = "\u00bfDe qu\u00e9 factor?") else 1L
-    if (j == 0L) return(invisible(NULL))
-    comparacion <- nombres[j]
-  } else if (tipo == "regresion" && length(validas) > 1L) {
-    j <- utils::menu(validas, title = "\u00bfDe qu\u00e9 factor?")
-    if (j == 0L) return(invisible(NULL))
-    comparacion <- validas[j]
-  }
 
-  g <- plot.inkagro(x, comparacion = comparacion, tipo = tipo)
-  print(g)
-  objeto <- deparse(substitute(x))
-  linea <- paste0("plot(", objeto,
-                  if (!is.null(comparacion)) paste0(", comparacion = \"", comparacion, "\"") else "",
-                  ", tipo = \"", tipo, "\")")
-  message("\nPara repetirlo sin preguntas, copia esto en tu script:\n  ", linea,
-          "\nPara guardarlo:\n  ", sub(")$", ", archivo = \"figura.png\")", linea))
-  invisible(g)
+    g <- tryCatch(plot.inkagro(x, comparacion = comparacion, tipo = tipo),
+                  error = function(e) e)
+    if (inherits(g, "error")) {
+      decir(paste0("\nNo se pudo dibujar ese gr\u00e1fico: ", conditionMessage(g)))
+      next
+    }
+    print(g)
+    ultimo <- g
+    linea <- paste0("plot(", objeto,
+                    if (!is.null(comparacion)) paste0(", comparacion = \"", comparacion, "\"") else "",
+                    ", tipo = \"", tipo, "\")")
+    decir(paste0("\nEl gr\u00e1fico est\u00e1 en la pesta\u00f1a Plots. Para repetirlo o guardarlo:\n  ",
+                 linea, "\n  ", sub(")$", ", archivo = \"figura.png\")", linea)))
+  }
+  invisible(ultimo)
 }

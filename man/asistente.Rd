@@ -12,7 +12,7 @@ se abre una ventana para elegir el archivo.}
 }
 \value{
 El resultado de [inkagro()], de forma invisible, o `NULL` si se
-  cancela.
+  cancela. Guárdalo con `res <- asistente()` para seguir usándolo.
 }
 \description{
 Lee el archivo, reconoce qué columnas son variables medidas, factores,
@@ -20,6 +20,7 @@ bloques o localidades, y hace preguntas en lenguaje de campo (qué
 mediste, qué comparaste, cómo se sembró). Con las respuestas ejecuta
 [inkagro()], muestra el reporte, ofrece crear el informe en Word e
 imprime las líneas de código para repetir el análisis sin preguntas.
+Después del análisis ofrece un menú de gráficos.
 }
 \details{
 Ejecuta esta función en una línea sola: si se envía junto con otras

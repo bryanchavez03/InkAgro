@@ -5,6 +5,7 @@
 #' mediste, qué comparaste, cómo se sembró). Con las respuestas ejecuta
 #' [inkagro()], muestra el reporte, ofrece crear el informe en Word e
 #' imprime las líneas de código para repetir el análisis sin preguntas.
+#' Después del análisis ofrece un menú de gráficos.
 #'
 #' Ejecuta esta función en una línea sola: si se envía junto con otras
 #' líneas del script, R toma la siguiente línea como respuesta.
@@ -12,7 +13,7 @@
 #' @param datos Ruta a un archivo de datos o un `data.frame`. Si se omite,
 #'   se abre una ventana para elegir el archivo.
 #' @return El resultado de [inkagro()], de forma invisible, o `NULL` si se
-#'   cancela.
+#'   cancela. Guárdalo con `res <- asistente()` para seguir usándolo.
 #' @examples
 #' if (interactive()) {
 #'   res <- asistente()
@@ -244,7 +245,9 @@ leer_datos <- function(archivo) {
   print(res)
 
   decir(paste0("\nPara repetir este an\u00e1lisis sin preguntas, copia en tu script:\n",
-               codigo, "\nPara ver gr\u00e1ficos: graficos(res)"))
+               codigo))
+
+  .ink_menu_graficos(res, "res", preguntar, decir)
 
   i <- preguntar("\u00bfQuieres el informe en Word?", c("S\u00ed", "No"), FALSE)
   if (length(i) && i == 1L) {
@@ -260,6 +263,9 @@ leer_datos <- function(archivo) {
                    "  install.packages(c(\"officer\", \"flextable\"))"))
     }
   }
+  decir(paste0(
+    "\nListo. Si quieres seguir usando este resultado (graficos(res), ",
+    "informe(res, ...)), la pr\u00f3xima vez escribe:  res <- asistente()"))
   invisible(res)
 }
 
