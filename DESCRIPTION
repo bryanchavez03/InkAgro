@@ -1,24 +1,37 @@
 Package: InkAgro
-Title: Intelligent Platform for Agricultural Experimental Data Analysis
+Title: Automated Analysis of Agricultural Field Experiments in Spanish
 Version: 0.1.0
-Authors@R: person("Bryan Joseph", "Chavez Velaisosa", 
-                   email = "7366989122@untrm.edu.pe", 
-                   role = c("aut", "cre"))
-Description: Automated pipeline for importing, cleaning, detecting 
-    experimental design, analyzing and reporting agricultural data.
+Authors@R: 
+    person("Bryan Joseph", "Chavez Velaisosa", 
+           email = "7366989122@untrm.edu.pe", 
+           role = c("aut", "cre"))
+Description: Analyses agricultural field experiments with a single call:
+    reads the data, verifies that its structure matches the declared
+    experimental design (completely randomised, randomised complete block,
+    two-factor factorial and split-plot designs), fits the analysis of
+    variance, checks the model assumptions, flags outliers without silently
+    removing them, and compares treatment means with the tests implemented
+    in 'agricolae'. Results are reported in Spanish for students and
+    researchers without prior training in R.
 License: MIT + file LICENSE
+Language: es
 Encoding: UTF-8
-RoxygenNote: 8.0.0
+Depends: 
+    R (>= 4.1.0)
 Imports: 
     agricolae,
     car,
-    cli,
-    emmeans,
-    ggplot2,
+    ggplot2 (>= 3.3.0),
     haven,
-    lme4,
-    multcomp,
     readxl,
-    stringdist
+    stats,
+    stringdist,
+    tools,
+    utils
+Suggests: 
+    nlme,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
 URL: https://github.com/bryanchavez03/InkAgro
 BugReports: https://github.com/bryanchavez03/InkAgro/issues
+RoxygenNote: 7.3.1

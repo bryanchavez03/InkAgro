@@ -1,5 +1,32 @@
+#' Limpieza automática de datos de campo
+#'
+#' Estandariza nombres de columnas, quita espacios, convierte textos como
+#' "NA" o "-" en faltantes, convierte números guardados como texto, unifica
+#' etiquetas casi idénticas (por ejemplo errores de tipeo en bloques) y
+#' aplica sinónimos definidos por el usuario.
+#'
+#' Es un paso opcional y previo a [inkagro()]. Revisa siempre el resultado:
+#' la limpieza toma decisiones automáticas sobre etiquetas y tipos de
+#' columna.
+#'
+#' @param datos Un `data.frame`.
+#' @param verbose Si es `TRUE`, informa cuántos faltantes quedan.
+#' @param imputar `"ninguno"` (por defecto), `"media"`, `"mediana"` o
+#'   `"moda"`. La imputación solo se aplica a columnas que no son de diseño
+#'   ni continuas. Por defecto no se imputa: rellenar datos cambia los
+#'   resultados del análisis.
+#' @param sinonimos Lista opcional con, por columna, un vector con nombre
+#'   que traduce etiquetas, por ejemplo
+#'   `list(variedad = c(inia_1 = "inia1"))`.
+#' @return El `data.frame` limpio, con un atributo `"na_reporte"` con el
+#'   número de faltantes por columna.
+#' @examples
+#' sucio <- data.frame(Bloque = c("B1", "b1 ", "B2", "B2"),
+#'                     Rendimiento = c("4.5", "NA", "5.1", "4.9"))
+#' inkagro_clean(sucio)
+#' @export
 inkagro_clean <- function(datos, verbose = TRUE,
-                          imputar = "media",
+                          imputar = "ninguno",
                           sinonimos = NULL) {
 
   if (!is.data.frame(datos)) {
@@ -31,7 +58,7 @@ inkagro_clean <- function(datos, verbose = TRUE,
     if (is.character(x)) {
       x <- gsub("\\s+", "_", tolower(trimws(x)))
       x <- chartr(
-        "áéíóúàèìòùäëïöüâêîôûãõñçÁÉÍÓÚÀÈÌÒÙÄËÏÖÜÂÊÎÔÛÃÕÑÇ",
+        "\u00e1\u00e9\u00ed\u00f3\u00fa\u00e0\u00e8\u00ec\u00f2\u00f9\u00e4\u00eb\u00ef\u00f6\u00fc\u00e2\u00ea\u00ee\u00f4\u00fb\u00e3\u00f5\u00f1\u00e7\u00c1\u00c9\u00cd\u00d3\u00da\u00c0\u00c8\u00cc\u00d2\u00d9\u00c4\u00cb\u00cf\u00d6\u00dc\u00c2\u00ca\u00ce\u00d4\u00db\u00c3\u00d5\u00d1\u00c7",
         "aeiouaeiouaeiouaeiouaoncAEIOUAEIOUAEIOUAEIOUAONC",
         x)
     }
@@ -64,10 +91,12 @@ inkagro_clean <- function(datos, verbose = TRUE,
   }))
 
   # 7.5 Imputar bloques faltantes por moda
-  for (col in names(datos)) {
-    if (col %in% pal_bloque && any(is.na(datos[[col]]))) {
-      moda_bloque <- names(sort(table(datos[[col]]), decreasing = TRUE))[1]
-      datos[[col]][is.na(datos[[col]])] <- moda_bloque
+  if (imputar != "ninguno") {
+    for (col in names(datos)) {
+      if (col %in% pal_bloque && any(is.na(datos[[col]]))) {
+        moda_bloque <- names(sort(table(datos[[col]]), decreasing = TRUE))[1]
+        datos[[col]][is.na(datos[[col]])] <- moda_bloque
+      }
     }
   }
 
@@ -92,14 +121,14 @@ inkagro_clean <- function(datos, verbose = TRUE,
                      pal_ambiente, pal_alpha, pal_parcela)
     datos_list <- lapply(col_names, function(col) {
       x           <- datos[[col]]
-      es_continua <- is.numeric(x) && length(unique(na.omit(x))) > 10
+      es_continua <- is.numeric(x) && length(unique(stats::na.omit(x))) > 10
       es_diseno   <- col %in% cols_diseno
       if (es_continua || es_diseno) return(x)
       if (is.numeric(x) && any(is.na(x))) {
         if (imputar == "media") {
           x[is.na(x)] <- round(mean(x, na.rm = TRUE), 2)
         } else if (imputar == "mediana") {
-          x[is.na(x)] <- round(median(x, na.rm = TRUE), 2)
+          x[is.na(x)] <- round(stats::median(x, na.rm = TRUE), 2)
         } else if (imputar == "moda") {
           moda <- names(sort(table(x), decreasing = TRUE))[1]
           x[is.na(x)] <- as.numeric(moda)
@@ -118,14 +147,14 @@ inkagro_clean <- function(datos, verbose = TRUE,
   # EXCEPTO variables continuas
   datos <- as.data.frame(lapply(datos, function(x) {
     if (is.numeric(x)) {
-      n_unicos    <- length(unique(na.omit(x)))
+      n_unicos    <- length(unique(stats::na.omit(x)))
       es_continua <- n_unicos > 10
       if (!es_continua && n_unicos <= 8) return(as.factor(x))
     }
     return(x)
   }))
 
-  # 10. Agrupar niveles similares — solo texto, protegiendo columnas de tratamiento/variedad
+  # 10. Agrupar niveles similares  solo texto, protegiendo columnas de tratamiento/variedad
   col_names_10  <- names(datos)
   datos_list_10 <- lapply(seq_along(col_names_10), function(idx) {
     x   <- datos[[idx]]
@@ -139,7 +168,7 @@ inkagro_clean <- function(datos, verbose = TRUE,
       x <- gsub("^(sistema|sist|sis)[-_]?(\\d+)$", "\\2", x, perl = TRUE)
       x <- gsub("^(bloque|blq|blk|rep|block)[-_]?(\\d+)$", "\\2", x, perl = TRUE)
       x <- gsub("^([a-z]+)[-_](\\d+)$", "\\1\\2", x, perl = TRUE)
-      niveles <- unique(na.omit(x))
+      niveles <- unique(stats::na.omit(x))
 
       # Mapear abreviaturas de una sola letra
       niveles_freq <- sort(table(x), decreasing = TRUE)
@@ -150,7 +179,7 @@ inkagro_clean <- function(datos, verbose = TRUE,
           if (length(candidatos) > 0) x[x == niv] <- candidatos[1]
         }
       }
-      niveles <- unique(na.omit(x))
+      niveles <- unique(stats::na.omit(x))
 
       # Normalizar prefijos de nivel de factor
       if (all(nchar(niveles) <= 8, na.rm = TRUE)) {
@@ -158,7 +187,7 @@ inkagro_clean <- function(datos, verbose = TRUE,
         x <- gsub("^niv(\\d+)$",   "\\1", x)
         x <- gsub("^n-(\\d+)$",    "\\1", x)
         x <- gsub("^n(\\d+)$",     "\\1", x)
-        niveles <- unique(na.omit(x))
+        niveles <- unique(stats::na.omit(x))
       }
 
       # Normalizar prefijos de tratamiento
@@ -176,17 +205,17 @@ inkagro_clean <- function(datos, verbose = TRUE,
         x <- gsub("^y(\\d+)$",    "\\1", x)
         x <- gsub("^d-(\\d+)$",   "\\1", x)
         x <- gsub("^d(\\d+)$",    "\\1", x)
-        niveles <- unique(na.omit(x))
+        niveles <- unique(stats::na.omit(x))
       }
 
       # Normalizar prefijo t de tratamientos numericos
       x_sin_t <- gsub("^t(\\d+)$", "\\1", x)
-      if (length(unique(na.omit(x_sin_t))) < length(unique(na.omit(x)))) {
+      if (length(unique(stats::na.omit(x_sin_t))) < length(unique(stats::na.omit(x)))) {
         x       <- x_sin_t
-        niveles <- unique(na.omit(x))
+        niveles <- unique(stats::na.omit(x))
       }
 
-      # Agrupar por distancia de cadenas — SOLO etiquetas cortas y columnas no-tratamiento.
+      # Agrupar por distancia de cadenas  SOLO etiquetas cortas y columnas no-tratamiento.
       # Se omite en columnas de tratamiento/variedad/genotipo para evitar colapsar
       # genotipos o variedades con nombres similares (ej. irga_423 vs irga_424).
       es_col_trat <- col %in% pal_trat
