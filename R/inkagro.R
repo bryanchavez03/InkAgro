@@ -42,7 +42,9 @@
 #' @param factor_b Nombre de la columna del segundo factor (factorial) o de
 #'   la subparcela (parcelas divididas).
 #' @param prueba Prueba de comparación de medias: `"tukey"` (por defecto),
-#'   `"duncan"`, `"lsd"` o `"snk"`. Se calculan con el paquete 'agricolae'.
+#'   `"duncan"`, `"lsd"` o `"snk"` (calculadas con el paquete 'agricolae'), o
+#'   `"scottknott"`, que forma grupos que no se superponen y conviene cuando
+#'   hay muchos tratamientos (Scott y Knott, 1974).
 #' @param alfa Nivel de significancia. Por defecto 0.05.
 #' @param outliers Qué hacer con los valores atípicos (residuo
 #'   estandarizado mayor que 3 en valor absoluto): `"marcar"` (por defecto)
@@ -59,6 +61,9 @@
 #' @references
 #' Pimentel-Gomes, F. (1985). *Curso de estatística experimental*. Nobel,
 #' São Paulo. (Clasificación del coeficiente de variación.)
+#'
+#' Scott, A. J. y Knott, M. (1974). A cluster analysis method for grouping
+#' means in the analysis of variance. *Biometrics* 30, 507-512.
 #'
 #' de Mendiburu, F. (2023). *agricolae: Statistical Procedures for
 #' Agricultural Research*. R package.
@@ -86,7 +91,7 @@ inkagro <- function(datos, respuesta, tratamiento,
                     diseno   = NULL,
                     bloque   = NULL,
                     factor_b = NULL,
-                    prueba   = c("tukey", "duncan", "lsd", "snk"),
+                    prueba   = c("tukey", "duncan", "lsd", "snk", "scottknott"),
                     alfa     = 0.05,
                     outliers = c("marcar", "excluir")) {
 

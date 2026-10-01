@@ -11,7 +11,7 @@ inkagro(
   diseno = NULL,
   bloque = NULL,
   factor_b = NULL,
-  prueba = c("tukey", "duncan", "lsd", "snk"),
+  prueba = c("tukey", "duncan", "lsd", "snk", "scottknott"),
   alfa = 0.05,
   outliers = c("marcar", "excluir")
 )
@@ -36,7 +36,9 @@ es el primer factor; en parcelas divididas, el de la parcela principal.}
 la subparcela (parcelas divididas).}
 
 \item{prueba}{Prueba de comparación de medias: `"tukey"` (por defecto),
-`"duncan"`, `"lsd"` o `"snk"`. Se calculan con el paquete 'agricolae'.}
+`"duncan"`, `"lsd"` o `"snk"` (calculadas con el paquete 'agricolae'), o
+`"scottknott"`, que forma grupos que no se superponen y conviene cuando
+hay muchos tratamientos (Scott y Knott, 1974).}
 
 \item{alfa}{Nivel de significancia. Por defecto 0.05.}
 
@@ -109,6 +111,9 @@ if (requireNamespace("nlme", quietly = TRUE)) {
 \references{
 Pimentel-Gomes, F. (1985). *Curso de estatística experimental*. Nobel,
 São Paulo. (Clasificación del coeficiente de variación.)
+
+Scott, A. J. y Knott, M. (1974). A cluster analysis method for grouping
+means in the analysis of variance. *Biometrics* 30, 507-512.
 
 de Mendiburu, F. (2023). *agricolae: Statistical Procedures for
 Agricultural Research*. R package.

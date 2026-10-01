@@ -208,6 +208,15 @@ informe <- function(x, archivo = "informe_inkagro.docx", titulo = NULL,
         ". Barras: error est\u00e1ndar. Letras distintas indican diferencias ",
         "significativas (", .ink_nombre_prueba(x$prueba), ", alfa = ", x$alfa, ")."))
     }
+    for (nombre in names(x$medias)) {
+      m <- x$medias[[nombre]]
+      if (nrow(m) < 10L || !attr(m, "factor") %in% c("A", "B", "AB")) next
+      g <- plot.inkagro(x, comparacion = nombre, tipo = "dendrograma", fuente = "serif")
+      doc <- figura(doc, g, paste0(
+        "Agrupamiento de las medias de ", nm$respuesta, " seg\u00fan ", nombre,
+        " (Scott-Knott, alfa = ", x$alfa, "). Cada rama es una divisi\u00f3n ",
+        "significativa; las hojas llevan su grupo y su media."))
+    }
     for (nombre in names(x$regresion)) {
       r <- x$regresion[[nombre]]
       if (!is.null(r$nota) || r$grado == 0L) next
@@ -236,5 +245,5 @@ informe <- function(x, archivo = "informe_inkagro.docx", titulo = NULL,
 
 .ink_nombre_prueba <- function(prueba) {
   c(tukey = "Tukey", duncan = "Duncan", lsd = "LSD de Fisher",
-    snk = "Student-Newman-Keuls")[[prueba]]
+    snk = "Student-Newman-Keuls", scottknott = "Scott-Knott")[[prueba]]
 }

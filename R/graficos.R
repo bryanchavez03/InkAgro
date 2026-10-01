@@ -22,6 +22,10 @@
 #'       cuantitativos, con ecuación y R²; marca el máximo técnico si lo hay.}
 #'     \item{`"residuos"`}{Diagnóstico: gráfico cuantil-cuantil y residuos
 #'       frente a valores ajustados.}
+#'     \item{`"dendrograma"`}{Árbol de Scott-Knott: cada rama es una división
+#'       significativa de las medias y las hojas llevan su grupo. Útil con
+#'       muchos tratamientos. Si el análisis usó otra prueba, el árbol se
+#'       calcula con Scott-Knott solo para el gráfico.}
 #'   }
 #' @param estilo `"articulo"` (escala de grises, por defecto) o `"color"`.
 #' @param color_barras,color_relleno Colores de borde y relleno cuando
@@ -51,11 +55,12 @@
 #'                    factor_b = "nitro", bloque = "Block",
 #'                    diseno = "parcelas_divididas")
 #'   plot(avena, tipo = "regresion")
+#'   plot(avena, comparacion = "nitro", tipo = "dendrograma")
 #' }
 #' @export
 plot.inkagro <- function(x, comparacion = NULL,
                          tipo = c("barras", "puntos", "cajas", "interaccion",
-                                  "regresion", "residuos"),
+                                  "regresion", "residuos", "dendrograma"),
                          estilo = c("articulo", "color"),
                          color_barras = "#2E75B6", color_relleno = "#BDD7EE",
                          fuente = "serif", tamano = 12,
@@ -76,6 +81,7 @@ plot.inkagro <- function(x, comparacion = NULL,
     interaccion = .ink_graf_interaccion(x, borde, estilo),
     regresion   = .ink_graf_regresion(x, comparacion, borde),
     residuos    = .ink_graf_residuos(x, borde),
+    dendrograma = .ink_graf_dendrograma(x, .ink_elegir_comparacion(x, comparacion), borde),
     {
       m <- .ink_elegir_comparacion(x, comparacion)
       switch(tipo,
@@ -86,6 +92,10 @@ plot.inkagro <- function(x, comparacion = NULL,
   )
 
   g <- g + .ink_tema(fuente, tamano)
+  if (tipo == "dendrograma") {
+    g <- g + ggplot2::theme(axis.line.y = ggplot2::element_blank(),
+                            axis.ticks.y = ggplot2::element_blank())
+  }
   if (tipo == "residuos") {
     g <- g + ggplot2::theme(strip.background = ggplot2::element_blank(),
                             strip.text = ggplot2::element_text(face = "bold"))
@@ -356,7 +366,8 @@ graficos <- function(x) {
                 cajas  = "Cajas con los datos",
                 interaccion = "Interacci\u00f3n entre los dos factores",
                 regresion   = "Curva dosis-respuesta (factor cuantitativo)",
-                residuos    = "Diagn\u00f3stico de residuos (supuestos)")
+                residuos    = "Diagn\u00f3stico de residuos (supuestos)",
+                dendrograma = "Dendrograma de grupos (Scott-Knott)")
   if (!x$diseno %in% c("factorial", "pd")) {
     opciones <- opciones[names(opciones) != "interaccion"]
   }
@@ -372,7 +383,7 @@ graficos <- function(x) {
     tipo <- names(opciones)[i]
 
     comparacion <- NULL
-    if (tipo %in% c("barras", "puntos", "cajas") && length(x$medias) > 1L) {
+    if (tipo %in% c("barras", "puntos", "cajas", "dendrograma") && length(x$medias) > 1L) {
       nombres <- names(x$medias)
       if (tipo == "cajas") {
         nombres <- nombres[vapply(x$medias, function(m) attr(m, "factor") %in% c("A", "B"), logical(1))]

@@ -75,8 +75,7 @@ print.inkagro <- function(x, max_niveles = 20, ...) {
       "interpretar las pruebas."), "  "), "\n", sep = "")
   }
 
-  nombre_prueba <- c(tukey = "Tukey", duncan = "Duncan", lsd = "LSD de Fisher",
-                     snk = "Student-Newman-Keuls")[[x$prueba]]
+  nombre_prueba <- .ink_nombre_prueba(x$prueba)
   cat("\nComparaci\u00f3n de medias (", nombre_prueba, ", alfa = ", x$alfa,
       ")\n", sep = "")
   for (nombre in names(x$medias)) {

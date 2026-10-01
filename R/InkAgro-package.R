@@ -10,4 +10,4 @@
 "_PACKAGE"
 
 # Columnas usadas dentro de aes() de ggplot2.
-utils::globalVariables(c("nivel", "media", "ee", "grupo", "tope", "valor", "A", "B", "y", "inf", "sup", "dosis", "panel"))
+utils::globalVariables(c("nivel", "media", "ee", "grupo", "tope", "valor", "A", "B", "y", "inf", "sup", "dosis", "panel", "x", "xend", "yend", "etiqueta"))

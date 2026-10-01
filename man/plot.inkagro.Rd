@@ -7,7 +7,8 @@
 \method{plot}{inkagro}(
   x,
   comparacion = NULL,
-  tipo = c("barras", "puntos", "cajas", "interaccion", "regresion", "residuos"),
+  tipo = c("barras", "puntos", "cajas", "interaccion", "regresion", "residuos",
+    "dendrograma"),
   estilo = c("articulo", "color"),
   color_barras = "#2E75B6",
   color_relleno = "#BDD7EE",
@@ -40,6 +41,10 @@ cuantitativo (ver `names(x$regresion)`).}
     cuantitativos, con ecuación y R²; marca el máximo técnico si lo hay.}
   \item{`"residuos"`}{Diagnóstico: gráfico cuantil-cuantil y residuos
     frente a valores ajustados.}
+  \item{`"dendrograma"`}{Árbol de Scott-Knott: cada rama es una división
+    significativa de las medias y las hojas llevan su grupo. Útil con
+    muchos tratamientos. Si el análisis usó otra prueba, el árbol se
+    calcula con Scott-Knott solo para el gráfico.}
 }}
 
 \item{estilo}{`"articulo"` (escala de grises, por defecto) o `"color"`.}
@@ -86,5 +91,6 @@ if (requireNamespace("nlme", quietly = TRUE)) {
                    factor_b = "nitro", bloque = "Block",
                    diseno = "parcelas_divididas")
   plot(avena, tipo = "regresion")
+  plot(avena, comparacion = "nitro", tipo = "dendrograma")
 }
 }

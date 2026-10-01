@@ -22,3 +22,7 @@
 * `asistente()`: reconoce variables medidas, factores, bloques y localidades
   y pregunta en lenguaje de campo; imprime el código para repetir el
   análisis. `leer_datos()` exporta el lector de archivos.
+* `prueba = "scottknott"`: grupos de medias que no se superponen (validado
+  contra el paquete 'ScottKnott'); el asistente la ofrece con 10 o más
+  tratamientos.
+* `plot(tipo = "dendrograma")`: árbol de las divisiones de Scott-Knott.

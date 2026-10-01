@@ -271,11 +271,24 @@ leer_datos <- function(archivo) {
     }
   }
 
+  prueba <- "tukey"
+  n_niveles <- max(nlevels(.ink_factor(crudo[[tratamiento]])),
+                   if (!is.null(factor_b)) nlevels(.ink_factor(crudo[[factor_b]])) else 0L)
+  if (n_niveles >= 10L) {
+    i <- preguntar(sprintf(paste0(
+      "Tienes %d tratamientos. Con tantos, Tukey suele dar letras repetidas ",
+      "(ab, abc, abcd) que casi no separan. Scott-Knott forma grupos sin letras ",
+      "repetidas. \u00bfQu\u00e9 prueba usamos para comparar medias?"), n_niveles),
+      c("Scott-Knott (recomendada con muchos tratamientos)", "Tukey"), FALSE)
+    if (!length(i) || i == 0L) return(cancelar())
+    if (i == 1L) prueba <- "scottknott"
+  }
+
   codigo <- .ink_codigo_asistente(fuente, filtro, respuesta, tratamiento,
-                                  factor_b, bloque, diseno)
+                                  factor_b, bloque, diseno, prueba)
   res <- tryCatch(
     inkagro(crudo, respuesta = respuesta, tratamiento = tratamiento,
-            diseno = diseno, bloque = bloque, factor_b = factor_b),
+            diseno = diseno, bloque = bloque, factor_b = factor_b, prueba = prueba),
     error = function(e) e)
   if (inherits(res, "error")) {
     decir(paste0("\nNo se pudo hacer el an\u00e1lisis:\n", conditionMessage(res)))
@@ -366,7 +379,7 @@ leer_datos <- function(archivo) {
 }
 
 .ink_codigo_asistente <- function(fuente, filtro, respuesta, tratamiento,
-                                  factor_b, bloque, diseno) {
+                                  factor_b, bloque, diseno, prueba = "tukey") {
   cita <- function(z) paste0("\"", z, "\"")
   es_archivo <- grepl("\\.[A-Za-z0-9]{2,4}$", fuente) && !grepl("[()]", fuente)
   lineas <- character()
@@ -384,7 +397,8 @@ leer_datos <- function(archivo) {
             paste0("tratamiento = ", cita(tratamiento)),
             if (!is.null(factor_b)) paste0("factor_b = ", cita(factor_b)),
             if (!is.null(bloque)) paste0("bloque = ", cita(bloque)),
-            paste0("diseno = ", cita(diseno)))
+            paste0("diseno = ", cita(diseno)),
+            if (prueba != "tukey") paste0("prueba = ", cita(prueba)))
   lineas <- c(lineas, paste0("res <- inkagro(", paste(args, collapse = ",\n               "), ")"),
               "res")
   paste0("  ", lineas, collapse = "\n")

@@ -150,6 +150,9 @@
 }
 
 .ink_comparar <- function(y, g, gl, cm, prueba, alfa) {
+  if (prueba == "scottknott") {
+    return(.ink_scott_knott(y, g, gl, cm, alfa))
+  }
   yy <- as.numeric(y)
   tt <- as.character(g)
   res <- switch(

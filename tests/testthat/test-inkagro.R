@@ -368,3 +368,28 @@ test_that("el asistente explica bloques incompletos anidados y submuestras", {
   expect_null(out)
   expect_true(any(grepl("submuestras", mensajes)))
 })
+
+test_that("Scott-Knott agrupa sin superponer y el dendrograma coincide", {
+  res <- inkagro(PlantGrowth, "weight", "group", diseno = "dca", prueba = "scottknott")
+  m <- res$medias$group
+  expect_equal(setNames(m$grupo, m$nivel), c(trt2 = "a", ctrl = "b", trt1 = "b"))
+  expect_false(any(nchar(m$grupo) > 1))            # sin letras combinadas
+  expect_output(print(res), "Scott-Knott")
+  expect_s3_class(plot(res, tipo = "dendrograma"), "ggplot")
+  # con otra prueba, el dendrograma calcula Scott-Knott para el grafico
+  tk <- inkagro(PlantGrowth, "weight", "group", diseno = "dca")
+  expect_s3_class(plot(tk, tipo = "dendrograma"), "ggplot")
+  expect_equal(InkAgro:::.ink_letras(c(1, 26, 27, 28)), c("a", "z", "aa", "ab"))
+})
+
+test_that("el asistente ofrece Scott-Knott con muchos tratamientos", {
+  set.seed(8)
+  d <- data.frame(gen = rep(sprintf("G%02d", 1:12), 3), rep = rep(c("I", "II", "III"), each = 12))
+  d$y <- round(rnorm(36, rep(seq(10, 21), 3), 0.8), 2)
+  mensajes <- character()
+  res <- InkAgro:::.ink_asistente(
+    d, "d", respuestas("rep", 1L, "Terminar", "No"),
+    decir = function(x) mensajes <<- c(mensajes, x))
+  expect_equal(res$prueba, "scottknott")
+  expect_true(any(grepl("prueba = \"scottknott\"", mensajes)))
+})
