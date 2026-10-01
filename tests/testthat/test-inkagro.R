@@ -302,3 +302,20 @@ test_that("el asistente pide confirmar si el bloque elegido no es el sugerido", 
   expect_equal(res$nombres$bloque, "Block")
   expect_equal(res$diseno, "factorial")
 })
+
+test_that("si elige un solo factor y hay otro cruzado, el asistente pregunta", {
+  skip_if_not_installed("nlme")
+  o <- as.data.frame(nlme::Oats)
+  titulos <- character()
+  fake <- respuestas("Block", "nitro", 1L,
+                     "Un factor en parcelas grandes y el otro dentro de ellas",
+                     "Variety", "No")
+  espia <- function(titulo, opciones, multiple = FALSE) {
+    titulos <<- c(titulos, titulo)
+    fake(titulo, opciones, multiple)
+  }
+  res <- InkAgro:::.ink_asistente(o, "avena", espia, decir = function(m) NULL)
+  expect_true(any(grepl("Tambi\u00e9n comparaste 'Variety'", titulos)))
+  expect_equal(res$diseno, "pd")
+  expect_equal(res$nombres$tratamiento, "Variety")
+})

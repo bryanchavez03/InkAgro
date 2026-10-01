@@ -55,12 +55,29 @@ leer_datos <- function(archivo) {
 # preguntar(titulo, opciones, multiple) devuelve el/los indices elegidos;
 # integer(0) o 0 significa cancelar.
 .ink_preguntar_consola <- function(titulo, opciones, multiple = FALSE) {
-  if (multiple) {
-    elegidas <- utils::select.list(opciones, multiple = TRUE, title = titulo,
-                                   graphics = FALSE)
-    return(match(elegidas, opciones))
+  cat("\n", paste(strwrap(titulo, width = 76), collapse = "\n"), "\n\n", sep = "")
+  cat(paste0(format(seq_along(opciones), width = nchar(length(opciones))), ": ",
+             opciones), sep = "\n")
+  indicacion <- if (multiple) {
+    "\nEscribe los n\u00fameros separados por espacio (0 para cancelar): "
+  } else {
+    "\nEscribe el n\u00famero (0 para cancelar): "
   }
-  utils::menu(opciones, title = titulo)
+  for (intento in 1:3) {
+    texto <- trimws(readline(indicacion))
+    numeros <- suppressWarnings(as.integer(strsplit(texto, "[ ,]+")[[1]]))
+    if (length(numeros) && !anyNA(numeros)) {
+      if (identical(numeros, 0L)) return(0L)
+      if (all(numeros >= 1L & numeros <= length(opciones)) &&
+          (multiple || length(numeros) == 1L)) {
+        return(unique(numeros))
+      }
+    }
+    cat("No entend\u00ed la respuesta. Escribe ",
+        if (multiple) "uno o m\u00e1s n\u00fameros" else "un n\u00famero",
+        " entre 1 y ", length(opciones), ".\n", sep = "")
+  }
+  0L
 }
 
 .ink_asistente <- function(datos, fuente, preguntar, decir) {
@@ -148,6 +165,32 @@ leer_datos <- function(archivo) {
       "(escribe los n\u00fameros separados por espacio):"), resto, TRUE)
     if (!length(idx) || all(idx == 0L)) return(cancelar())
     factores <- resto[idx]
+  }
+  # Si eligio un solo factor y otro factor explica las repeticiones dentro de
+  # cada bloque (o de cada tratamiento), probablemente tambien lo comparo.
+  if (length(factores) == 1L) {
+    f1 <- .ink_factor(crudo[[factores]])
+    unidad <- if (is.null(bloque)) f1 else interaction(f1, .ink_factor(crudo[[bloque]]), drop = TRUE)
+    if (any(table(unidad) > 1L)) {
+      for (otro in setdiff(resto, factores)) {
+        v <- .ink_factor(crudo[[otro]])
+        ok <- !is.na(unidad) & !is.na(v)
+        if (!any(ok) || max(table(droplevels(unidad[ok]), droplevels(v[ok]))) != 1L) next
+        j <- preguntar(sprintf(paste0(
+          "Cada nivel de '%s' aparece %d veces %s, una con cada nivel de '%s'. ",
+          "Eso indica que '%s' tambi\u00e9n es un factor del experimento. ",
+          "Si lo ignoras, sus diferencias se suman al error y el an\u00e1lisis ",
+          "sale mal. \u00bfTambi\u00e9n comparaste '%s'?"),
+          factores, max(table(droplevels(unidad[ok]))),
+          if (is.null(bloque)) "en tus datos" else "dentro de cada bloque",
+          otro, otro, otro),
+          c(sprintf("S\u00ed, tambi\u00e9n compar\u00e9 '%s'", otro),
+            sprintf("No, analizar solo '%s'", factores)), FALSE)
+        if (!length(j) || j == 0L) return(cancelar())
+        if (j == 1L) factores <- c(factores, otro)
+        break
+      }
+    }
   }
   if (length(factores) > 2L) {
     decir("\nInkAgro 0.1 analiza hasta dos factores a la vez. Elige como m\u00e1ximo dos.")
