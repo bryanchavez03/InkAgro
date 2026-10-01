@@ -133,7 +133,22 @@ informe <- function(x, archivo = "informe_inkagro.docx", titulo = NULL,
     .ink_num(x$media_general, 2L), "."))
 
   doc <- par(doc, "Interpretaci\u00f3n:", negrita = TRUE, antes = 8, despues = 2)
-  for (cc in .ink_conclusiones(x)) doc <- par(doc, paste0("\u2022 ", cc), despues = 2)
+  for (cc in .ink_conclusiones_todas(x)) doc <- par(doc, paste0("\u2022 ", cc), despues = 2)
+
+  for (nombre in names(x$regresion)) {
+    r <- x$regresion[[nombre]]
+    if (!is.null(r$nota)) next
+    reg_df <- data.frame(Componente = r$tabla$componente, GL = as.character(r$tabla$gl),
+                         SC = .ink_num(r$tabla$sc, 2L), F = .ink_num(r$tabla$F, 2L),
+                         p = .ink_p(r$tabla$p), Sig = r$tabla$sig,
+                         stringsAsFactors = FALSE)
+    names(reg_df)[6] <- "Sig."
+    doc <- rotulo_tabla(doc, paste0("Descomposici\u00f3n polinomial del efecto de ",
+                                    nombre, " sobre ", nm$respuesta, "."))
+    doc <- tabla(doc, reg_df, nota = paste0(
+      "Contrastes ortogonales probados con el error correspondiente a ", nombre,
+      ". ", .ink_texto_regresion(nombre, r, x$alfa)))
+  }
 
   # Supuestos
   doc <- seccion(doc, "3. Supuestos del an\u00e1lisis de varianza")
@@ -192,6 +207,15 @@ informe <- function(x, archivo = "informe_inkagro.docx", titulo = NULL,
         "Medias de ", nm$respuesta, " seg\u00fan ", nombre,
         ". Barras: error est\u00e1ndar. Letras distintas indican diferencias ",
         "significativas (", .ink_nombre_prueba(x$prueba), ", alfa = ", x$alfa, ")."))
+    }
+    for (nombre in names(x$regresion)) {
+      r <- x$regresion[[nombre]]
+      if (!is.null(r$nota) || r$grado == 0L) next
+      g <- plot.inkagro(x, comparacion = nombre, tipo = "regresion", fuente = "serif")
+      doc <- figura(doc, g, paste0(
+        "Respuesta de ", nm$respuesta, " a ", nombre,
+        ". Puntos: medias \u00b1 error est\u00e1ndar; l\u00ednea: modelo ",
+        if (r$grado == 1L) "lineal" else "cuadr\u00e1tico", " ajustado."))
     }
     if (x$diseno %in% c("factorial", "pd")) {
       g <- plot.inkagro(x, tipo = "interaccion", fuente = "serif")

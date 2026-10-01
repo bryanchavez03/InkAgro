@@ -7,7 +7,7 @@
 \method{plot}{inkagro}(
   x,
   comparacion = NULL,
-  tipo = c("barras", "cajas", "interaccion"),
+  tipo = c("barras", "puntos", "cajas", "interaccion", "regresion", "residuos"),
   estilo = c("articulo", "color"),
   color_barras = "#2E75B6",
   color_relleno = "#BDD7EE",
@@ -25,11 +25,22 @@
 
 \item{comparacion}{Nombre o número de la comparación a graficar (ver
 `names(x$medias)`). Por defecto, la interacción si fue significativa;
-si no, el primer factor.}
+si no, el primer factor. Con `tipo = "regresion"`, nombre del factor
+cuantitativo (ver `names(x$regresion)`).}
 
-\item{tipo}{`"barras"` (medias, error estándar y letras), `"cajas"`
-(distribución de los datos) o `"interaccion"` (medias de cada
-combinación, solo para factorial y parcelas divididas).}
+\item{tipo}{Uno de:
+\describe{
+  \item{`"barras"`}{Medias, error estándar y letras de la comparación.}
+  \item{`"puntos"`}{Medias con intervalo de confianza y letras; lo
+    prefieren muchas revistas porque no esconde la escala.}
+  \item{`"cajas"`}{Distribución de los datos con las letras.}
+  \item{`"interaccion"`}{Medias de cada combinación (factorial y
+    parcelas divididas).}
+  \item{`"regresion"`}{Curva dosis-respuesta para factores
+    cuantitativos, con ecuación y R²; marca el máximo técnico si lo hay.}
+  \item{`"residuos"`}{Diagnóstico: gráfico cuantil-cuantil y residuos
+    frente a valores ajustados.}
+}}
 
 \item{estilo}{`"articulo"` (escala de grises, por defecto) o `"color"`.}
 
@@ -66,4 +77,14 @@ res <- inkagro(npk, "yield", "N", factor_b = "P", bloque = "block",
 plot(res)
 plot(res, tipo = "interaccion")
 plot(res, comparacion = "P", tipo = "cajas")
+plot(res, tipo = "puntos")
+plot(res, tipo = "residuos")
+
+# Factor cuantitativo: curva dosis-respuesta
+if (requireNamespace("nlme", quietly = TRUE)) {
+  avena <- inkagro(as.data.frame(nlme::Oats), "yield", "Variety",
+                   factor_b = "nitro", bloque = "Block",
+                   diseno = "parcelas_divididas")
+  plot(avena, tipo = "regresion")
+}
 }

@@ -190,3 +190,42 @@ test_that("respeta el orden de niveles de un factor y muchos niveles van horizon
   g <- plot(inkagro(d, "y", "gen", bloque = "rep", diseno = "dbca"))
   expect_match(deparse(g$mapping$y), "nivel")
 })
+
+test_that("la regresion polinomial coincide con aov() y con el error correcto", {
+  skip_if_not_installed("nlme")
+  o <- as.data.frame(nlme::Oats)
+  res <- inkagro(o, "yield", "Variety", factor_b = "nitro", bloque = "Block",
+                 diseno = "parcelas_divididas")
+  r <- res$regresion$nitro
+  o$N <- factor(o$nitro)
+  contrasts(o$N) <- contr.poly(4, scores = c(0, 0.2, 0.4, 0.6))
+  ref <- summary(stats::aov(yield ~ Variety * N + Error(Block / Variety), o),
+                 split = list(N = list(L = 1, Q = 2, C = 3)))[["Error: Within"]][[1]]
+  expect_equal(r$tabla$F[1:3], unname(ref[["F value"]][2:4]))
+  expect_equal(r$grado, 1L)
+  expect_named(res$regresion, "nitro")       # Variety no es cuantitativo
+  expect_output(print(res), "Respuesta lineal")
+})
+
+test_that("detecta el maximo de una respuesta cuadratica", {
+  d <- expand.grid(dosis = c(0, 50, 100, 150, 200), rep = 1:4)
+  set.seed(10)
+  d$y <- 10 + 0.2 * d$dosis - 0.001 * d$dosis^2 + rnorm(nrow(d), sd = 0.5)
+  res <- inkagro(d, "y", "dosis", bloque = "rep", diseno = "dbca")
+  r <- res$regresion$dosis
+  expect_equal(r$grado, 2L)
+  expect_true(abs(r$optimo[["x"]] - 100) < 15)
+})
+
+test_that("graficos nuevos y menu fuera de sesion interactiva", {
+  res <- inkagro(npk, "yield", "N", factor_b = "P", bloque = "block",
+                 diseno = "factorial")
+  expect_s3_class(plot(res, tipo = "puntos"), "ggplot")
+  expect_s3_class(plot(res, tipo = "residuos"), "ggplot")
+  expect_error(plot(res, tipo = "regresion"), "cuantitativo")
+  expect_error(graficos(res), "interactiva")
+})
+
+test_that("si el archivo no existe, sugiere usar la ruta completa", {
+  expect_error(inkagro("no_existe_123.xlsx", "y", "t"), "file.choose")
+})

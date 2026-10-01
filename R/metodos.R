@@ -50,7 +50,17 @@ print.inkagro <- function(x, max_niveles = 20, ...) {
   cat("\n", cv_txt, " | Media general = ", .ink_num(x$media_general, 3L), "\n", sep = "")
 
   cat("\nConclusiones (alfa = ", x$alfa, ")\n", sep = "")
-  for (cc in .ink_conclusiones(x)) cat(.ink_envolver(cc, "  - "), "\n", sep = "")
+  for (cc in .ink_conclusiones_todas(x)) cat(.ink_envolver(cc, "  - "), "\n", sep = "")
+
+  for (nombre in names(x$regresion)) {
+    r <- x$regresion[[nombre]]
+    if (!is.null(r$nota)) next
+    cat("\nRegresi\u00f3n para '", nombre, "' (factor cuantitativo)\n", sep = "")
+    print(data.frame(Componente = formatC(r$tabla$componente, width = -max(nchar(r$tabla$componente))),
+                     GL = r$tabla$gl, SC = .ink_num(r$tabla$sc, 3L),
+                     F = .ink_num(r$tabla$F, 2L), p = .ink_p(r$tabla$p), " " = r$tabla$sig,
+                     check.names = FALSE), row.names = FALSE)
+  }
 
   cat("\nSupuestos (sobre los residuos)\n")
   s <- x$supuestos
@@ -189,6 +199,12 @@ as.data.frame.inkagro <- function(x, row.names = NULL, optional = FALSE,
       paste("No se detectaron diferencias significativas entre", que, stats_txt)
     }
   }, character(1))
+}
+
+.ink_conclusiones_todas <- function(x) {
+  c(.ink_conclusiones(x),
+    vapply(names(x$regresion), function(n) .ink_texto_regresion(n, x$regresion[[n]], x$alfa),
+           character(1)))
 }
 
 .ink_envolver <- function(texto, prefijo) {

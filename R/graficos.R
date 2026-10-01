@@ -8,10 +8,21 @@
 #' @param x Objeto devuelto por [inkagro()].
 #' @param comparacion Nombre o número de la comparación a graficar (ver
 #'   `names(x$medias)`). Por defecto, la interacción si fue significativa;
-#'   si no, el primer factor.
-#' @param tipo `"barras"` (medias, error estándar y letras), `"cajas"`
-#'   (distribución de los datos) o `"interaccion"` (medias de cada
-#'   combinación, solo para factorial y parcelas divididas).
+#'   si no, el primer factor. Con `tipo = "regresion"`, nombre del factor
+#'   cuantitativo (ver `names(x$regresion)`).
+#' @param tipo Uno de:
+#'   \describe{
+#'     \item{`"barras"`}{Medias, error estándar y letras de la comparación.}
+#'     \item{`"puntos"`}{Medias con intervalo de confianza y letras; lo
+#'       prefieren muchas revistas porque no esconde la escala.}
+#'     \item{`"cajas"`}{Distribución de los datos con las letras.}
+#'     \item{`"interaccion"`}{Medias de cada combinación (factorial y
+#'       parcelas divididas).}
+#'     \item{`"regresion"`}{Curva dosis-respuesta para factores
+#'       cuantitativos, con ecuación y R²; marca el máximo técnico si lo hay.}
+#'     \item{`"residuos"`}{Diagnóstico: gráfico cuantil-cuantil y residuos
+#'       frente a valores ajustados.}
+#'   }
 #' @param estilo `"articulo"` (escala de grises, por defecto) o `"color"`.
 #' @param color_barras,color_relleno Colores de borde y relleno cuando
 #'   `estilo = "color"`.
@@ -31,9 +42,20 @@
 #' plot(res)
 #' plot(res, tipo = "interaccion")
 #' plot(res, comparacion = "P", tipo = "cajas")
+#' plot(res, tipo = "puntos")
+#' plot(res, tipo = "residuos")
+#'
+#' # Factor cuantitativo: curva dosis-respuesta
+#' if (requireNamespace("nlme", quietly = TRUE)) {
+#'   avena <- inkagro(as.data.frame(nlme::Oats), "yield", "Variety",
+#'                    factor_b = "nitro", bloque = "Block",
+#'                    diseno = "parcelas_divididas")
+#'   plot(avena, tipo = "regresion")
+#' }
 #' @export
 plot.inkagro <- function(x, comparacion = NULL,
-                         tipo = c("barras", "cajas", "interaccion"),
+                         tipo = c("barras", "puntos", "cajas", "interaccion",
+                                  "regresion", "residuos"),
                          estilo = c("articulo", "color"),
                          color_barras = "#2E75B6", color_relleno = "#BDD7EE",
                          fuente = "serif", tamano = 12,
@@ -49,19 +71,26 @@ plot.inkagro <- function(x, comparacion = NULL,
     relleno <- color_relleno
   }
 
-  g <- if (tipo == "interaccion") {
-    .ink_graf_interaccion(x, borde, estilo)
-  } else {
-    m <- .ink_elegir_comparacion(x, comparacion)
-    if (tipo == "barras") {
-      .ink_graf_barras(x, m, borde, relleno)
-    } else {
-      .ink_graf_cajas(x, m, borde, relleno)
+  g <- switch(
+    tipo,
+    interaccion = .ink_graf_interaccion(x, borde, estilo),
+    regresion   = .ink_graf_regresion(x, comparacion, borde),
+    residuos    = .ink_graf_residuos(x, borde),
+    {
+      m <- .ink_elegir_comparacion(x, comparacion)
+      switch(tipo,
+             barras = .ink_graf_barras(x, m, borde, relleno),
+             puntos = .ink_graf_puntos(x, m, borde),
+             cajas  = .ink_graf_cajas(x, m, borde, relleno))
     }
-  }
+  )
 
   g <- g + .ink_tema(fuente, tamano)
-  if (tipo != "interaccion" && nlevels(g$data$nivel) > 8L &&
+  if (tipo == "residuos") {
+    g <- g + ggplot2::theme(strip.background = ggplot2::element_blank(),
+                            strip.text = ggplot2::element_text(face = "bold"))
+  }
+  if (tipo %in% c("barras", "puntos", "cajas") && nlevels(g$data$nivel) > 8L &&
       nlevels(g$data$nivel) <= 15L) {
     g <- g + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
   }
@@ -179,4 +208,181 @@ plot.inkagro <- function(x, comparacion = NULL,
     ggplot2::labs(x = nm$factor_b, y = nm$respuesta, shape = nm$tratamiento,
                   linetype = nm$tratamiento, colour = nm$tratamiento)
   g
+}
+
+.ink_error_de <- function(x, m) {
+  fac <- attr(m, "factor")
+  clave <- switch(fac, "B|A" = "B", fac)
+  x$errores[[clave]]
+}
+
+.ink_graf_puntos <- function(x, m, borde) {
+  err <- .ink_error_de(x, m)
+  t <- stats::qt(1 - x$alfa / 2, err[["gl"]])
+  m$inf <- m$media - t * m$ee
+  m$sup <- m$media + t * m$ee
+  conf <- paste0(round(100 * (1 - x$alfa)), "%")
+  if (nrow(m) > 15L) {
+    m$nivel <- factor(as.character(m$nivel), levels = m$nivel[order(m$media)])
+    return(
+      ggplot2::ggplot(m, ggplot2::aes(x = media, y = nivel)) +
+        ggplot2::geom_errorbar(ggplot2::aes(xmin = inf, xmax = sup), width = 0.3,
+                               colour = borde, linewidth = 0.3) +
+        ggplot2::geom_point(shape = 21, fill = "white", colour = borde, size = 1.8) +
+        ggplot2::geom_text(ggplot2::aes(x = sup, label = grupo), hjust = -0.3,
+                           family = "serif", size = 2.8) +
+        ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = c(0.05, 0.12))) +
+        ggplot2::labs(y = attr(m, "titulo"),
+                      x = paste0(x$nombres$respuesta, " (media e IC ", conf, ")"))
+    )
+  }
+  ggplot2::ggplot(m, ggplot2::aes(x = nivel, y = media)) +
+    ggplot2::geom_errorbar(ggplot2::aes(ymin = inf, ymax = sup), width = 0.12,
+                           colour = borde, linewidth = 0.4) +
+    ggplot2::geom_point(shape = 21, fill = "white", colour = borde, size = 2.6,
+                        stroke = 0.6) +
+    ggplot2::geom_text(ggplot2::aes(y = sup, label = grupo), vjust = -0.7,
+                       family = "serif", size = 3.8) +
+    ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0.05, 0.12))) +
+    ggplot2::labs(x = attr(m, "titulo"),
+                  y = paste0(x$nombres$respuesta, " (media e IC ", conf, ")"))
+}
+
+.ink_graf_regresion <- function(x, comparacion, borde) {
+  validas <- names(x$regresion)[vapply(x$regresion, function(r) is.null(r$nota), logical(1))]
+  if (!length(validas)) {
+    stop("El gr\u00e1fico de regresi\u00f3n requiere un factor cuantitativo ",
+         "(por ejemplo dosis) con al menos 3 niveles y datos balanceados.",
+         call. = FALSE)
+  }
+  if (is.null(comparacion) || !comparacion %in% validas) {
+    if (!is.null(comparacion) && !is.numeric(comparacion)) {
+      stop("'", comparacion, "' no es un factor cuantitativo. Opciones: ",
+           paste(validas, collapse = ", "), call. = FALSE)
+    }
+    comparacion <- validas[1L]
+  }
+  r <- x$regresion[[comparacion]]
+  puntos <- data.frame(dosis = r$dosis, media = r$medias, ee = r$ee)
+  g <- ggplot2::ggplot(puntos, ggplot2::aes(x = dosis, y = media)) +
+    ggplot2::geom_errorbar(ggplot2::aes(ymin = media - ee, ymax = media + ee),
+                           width = diff(range(r$dosis)) * 0.02, colour = borde,
+                           linewidth = 0.4)
+  if (r$grado > 0L) {
+    xs <- seq(min(r$dosis), max(r$dosis), length.out = 200L)
+    curva <- data.frame(dosis = xs,
+                        media = vapply(xs, function(v) sum(r$coef * v^(seq_along(r$coef) - 1L)),
+                                       numeric(1)))
+    g <- g + ggplot2::geom_line(data = curva, colour = borde, linewidth = 0.6)
+    etiqueta <- paste0(.ink_ecuacion(r), "\nR\u00b2 = ", .ink_num(r$r2, 3L))
+    if (!is.null(r$optimo)) {
+      g <- g + ggplot2::geom_vline(xintercept = r$optimo[["x"]], linetype = "dashed",
+                                   colour = "grey40", linewidth = 0.4)
+      etiqueta <- paste0(etiqueta, "\nM\u00e1ximo en x = ", .ink_num(r$optimo[["x"]], 3L))
+    }
+  } else {
+    etiqueta <- "Sin tendencia significativa"
+  }
+  sube <- r$medias[length(r$medias)] >= r$medias[1L]
+  g + ggplot2::geom_point(shape = 21, fill = "white", colour = borde, size = 2.6,
+                          stroke = 0.6) +
+    ggplot2::annotate("text", x = if (sube) min(r$dosis) else max(r$dosis),
+                      y = max(r$medias + r$ee), label = etiqueta,
+                      hjust = if (sube) 0 else 1, vjust = 1, family = "serif",
+                      size = 3.6, lineheight = 1.1) +
+    ggplot2::labs(x = comparacion, y = x$nombres$respuesta)
+}
+
+.ink_graf_residuos <- function(x, borde) {
+  rs <- suppressWarnings(stats::rstandard(x$modelo))
+  ok <- is.finite(rs)
+  rs <- rs[ok]
+  aj <- stats::fitted(x$modelo)[ok]
+  n <- length(rs)
+  qq <- data.frame(panel = "Normalidad (Q-Q)",
+                   x = stats::qnorm(stats::ppoints(n))[rank(rs, ties.method = "first")],
+                   y = rs)
+  rv <- data.frame(panel = "Residuos vs. ajustados", x = aj, y = rs)
+  datos <- rbind(qq, rv)
+  datos$panel <- factor(datos$panel, levels = c("Normalidad (Q-Q)", "Residuos vs. ajustados"))
+  ggplot2::ggplot(datos, ggplot2::aes(x = x, y = y)) +
+    ggplot2::geom_abline(data = datos[datos$panel == "Normalidad (Q-Q)", ][1L, ],
+                         ggplot2::aes(intercept = 0, slope = 1),
+                         colour = "grey40", linetype = "dashed") +
+    ggplot2::geom_hline(data = datos[datos$panel == "Residuos vs. ajustados", ][1L, ],
+                        ggplot2::aes(yintercept = 0),
+                        colour = "grey40", linetype = "dashed") +
+    ggplot2::geom_hline(yintercept = c(-3, 3), colour = "grey70", linetype = "dotted") +
+    ggplot2::geom_point(shape = 21, fill = "white", colour = borde, size = 1.8) +
+    ggplot2::facet_wrap(~ panel, scales = "free_x") +
+    ggplot2::labs(x = NULL, y = "Residuo estandarizado")
+}
+
+#' Elegir gráficos con un menú
+#'
+#' Muestra en la consola un menú con los gráficos disponibles para este
+#' análisis, dibuja el elegido e imprime la línea de código equivalente para
+#' copiarla en el script. Así quien no conoce los argumentos de
+#' [plot()][plot.inkagro] puede explorar, y el análisis sigue siendo
+#' reproducible.
+#'
+#' Ejecuta esta función en una línea sola: si se envía junto con otras
+#' líneas, R toma la siguiente línea del script como respuesta al menú.
+#'
+#' @param x Objeto devuelto por [inkagro()].
+#' @return El gráfico elegido (objeto `ggplot`), de forma invisible.
+#' @examples
+#' if (interactive()) {
+#'   res <- inkagro(PlantGrowth, "weight", "group", diseno = "dca")
+#'   graficos(res)
+#' }
+#' @export
+graficos <- function(x) {
+  if (!inherits(x, "inkagro")) {
+    stop("'x' debe ser el resultado de inkagro().", call. = FALSE)
+  }
+  if (!interactive()) {
+    stop("graficos() pregunta en la consola y solo funciona en una sesi\u00f3n ",
+         "interactiva. En un script usa plot(res, tipo = ...).", call. = FALSE)
+  }
+  opciones <- c(barras = "Barras con error est\u00e1ndar y letras",
+                puntos = "Puntos con intervalo de confianza y letras",
+                cajas  = "Cajas con los datos",
+                interaccion = "Interacci\u00f3n entre los dos factores",
+                regresion   = "Curva dosis-respuesta (factor cuantitativo)",
+                residuos    = "Diagn\u00f3stico de residuos (supuestos)")
+  if (!x$diseno %in% c("factorial", "pd")) {
+    opciones <- opciones[names(opciones) != "interaccion"]
+  }
+  validas <- names(x$regresion)[vapply(x$regresion, function(r) is.null(r$nota), logical(1))]
+  if (!length(validas)) opciones <- opciones[names(opciones) != "regresion"]
+
+  i <- utils::menu(unname(opciones), title = "\u00bfQu\u00e9 gr\u00e1fico quieres?")
+  if (i == 0L) return(invisible(NULL))
+  tipo <- names(opciones)[i]
+
+  comparacion <- NULL
+  if (tipo %in% c("barras", "puntos", "cajas") && length(x$medias) > 1L) {
+    nombres <- names(x$medias)
+    if (tipo == "cajas") {
+      nombres <- nombres[vapply(x$medias, function(m) attr(m, "factor") %in% c("A", "B"), logical(1))]
+    }
+    j <- if (length(nombres) > 1L) utils::menu(nombres, title = "\u00bfDe qu\u00e9 factor?") else 1L
+    if (j == 0L) return(invisible(NULL))
+    comparacion <- nombres[j]
+  } else if (tipo == "regresion" && length(validas) > 1L) {
+    j <- utils::menu(validas, title = "\u00bfDe qu\u00e9 factor?")
+    if (j == 0L) return(invisible(NULL))
+    comparacion <- validas[j]
+  }
+
+  g <- plot.inkagro(x, comparacion = comparacion, tipo = tipo)
+  print(g)
+  objeto <- deparse(substitute(x))
+  linea <- paste0("plot(", objeto,
+                  if (!is.null(comparacion)) paste0(", comparacion = \"", comparacion, "\"") else "",
+                  ", tipo = \"", tipo, "\")")
+  message("\nPara repetirlo sin preguntas, copia esto en tu script:\n  ", linea,
+          "\nPara guardarlo:\n  ", sub(")$", ", archivo = \"figura.png\")", linea))
+  invisible(g)
 }

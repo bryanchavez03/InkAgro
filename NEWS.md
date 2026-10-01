@@ -11,3 +11,11 @@
 * Resultados como objeto `inkagro` con métodos `print()`, `summary()`,
   `plot()` y `as.data.frame()`.
 * `inkagro_clean()` ya no imputa por defecto.
+* Factores cuantitativos (dosis): descomposición polinomial (lineal,
+  cuadrático, cúbico) con el error correcto, ecuación, R² y máximo técnico.
+* `plot()`: estilo de artículo en escala de grises y tipos `"puntos"`
+  (intervalo de confianza), `"interaccion"`, `"regresion"` y `"residuos"`.
+* `graficos()`: menú en la consola que dibuja el gráfico elegido e imprime
+  la línea de código para repetirlo.
+* `informe()`: documento de Word con tablas y figuras numeradas.
+* Si el archivo no existe, se busca en Descargas, Escritorio y Documentos.

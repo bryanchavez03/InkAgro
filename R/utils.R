@@ -6,7 +6,7 @@
     stop("'datos' debe ser un data.frame o la ruta a un archivo.", call. = FALSE)
   }
   if (!file.exists(datos)) {
-    stop("No se encontr\u00f3 el archivo: ", datos, call. = FALSE)
+    stop(.ink_no_encontrado(datos), call. = FALSE)
   }
   ext <- tolower(tools::file_ext(datos))
   leido <- switch(
@@ -30,6 +30,33 @@
          "rds, sav o dta.", call. = FALSE)
   )
   as.data.frame(leido)
+}
+
+# Mensaje cuando el archivo no existe: lo busca por nombre en la carpeta de
+# trabajo y en Descargas, Escritorio y Documentos, y sugiere la ruta.
+.ink_no_encontrado <- function(ruta) {
+  nombre <- basename(ruta)
+  carpetas <- unique(c(getwd(), path.expand(c("~/Downloads", "~/Descargas",
+                                               "~/Desktop", "~/Escritorio",
+                                               "~/Documents", "~/Documentos"))))
+  carpetas <- carpetas[dir.exists(carpetas)]
+  hallados <- character()
+  for (carpeta in carpetas) {
+    archivos <- list.files(carpeta, full.names = TRUE)
+    exacto <- archivos[tolower(basename(archivos)) == tolower(nombre)]
+    hallados <- c(hallados, exacto)
+  }
+  msj <- paste0("No se encontr\u00f3 el archivo '", ruta, "'.\nR lo busc\u00f3 en: ",
+                getwd())
+  if (length(hallados)) {
+    msj <- paste0(msj, "\nPero existe en: ", hallados[1L],
+                  "\nUsa esa ruta completa, por ejemplo:\n  inkagro(\"", hallados[1L],
+                  "\", ...)")
+  } else {
+    msj <- paste0(msj, "\nEscribe la ruta completa o usa file.choose() para ",
+                  "elegir el archivo: inkagro(file.choose(), ...)")
+  }
+  msj
 }
 
 # Devuelve el nombre real de la columna (tolera mayusculas y espacios) o

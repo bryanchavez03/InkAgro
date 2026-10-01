@@ -176,6 +176,19 @@ inkagro <- function(datos, respuesta, tratamiento,
 
   avisos <- c(avisos, ajuste$avisos)
 
+  regresion <- list()
+  for (rol in intersect(c("A", "B"), names(d))) {
+    if (!.ink_es_cuantitativo(d[[rol]])) next
+    columna <- if (rol == "A") nm$tratamiento else nm$factor_b
+    regresion[[columna]] <- .ink_regresion(d$y, d[[rol]], ajuste$errores[[rol]], alfa)
+  }
+  p_ab <- ajuste$anova$p[ajuste$anova$termino == "A:B"]
+  if (length(regresion) && length(p_ab) && !is.na(p_ab) && p_ab < alfa) {
+    avisos <- c(avisos, paste0(
+      "Con interacci\u00f3n significativa, la curva de regresi\u00f3n promedia ",
+      "los niveles del otro factor; interpr\u00e9tala con cuidado."))
+  }
+
   structure(
     list(
       diseno        = dis$codigo,
@@ -186,6 +199,8 @@ inkagro <- function(datos, respuesta, tratamiento,
       tipo_sc       = ajuste$tipo_sc,
       medias        = ajuste$medias,
       cv            = ajuste$cv,
+      errores       = ajuste$errores,
+      regresion     = regresion,
       media_general = mean(d$y),
       supuestos     = .ink_supuestos(ajuste$modelo, d, dis$codigo),
       atipicos      = atip,
