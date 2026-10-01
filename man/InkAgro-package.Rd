@@ -23,5 +23,10 @@ Useful links:
 \author{
 \strong{Maintainer}: Bryan Joseph Chavez Velaisosa \email{7366989122@untrm.edu.pe}
 
+Authors:
+\itemize{
+  \item Bryan Joseph Chavez Velaisosa \email{7366989122@untrm.edu.pe}
+}
+
 }
 \keyword{internal}
