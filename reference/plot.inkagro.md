@@ -125,8 +125,6 @@ res <- inkagro(npk, "yield", "N", factor_b = "P", bloque = "block",
 plot(res)
 
 plot(res, tipo = "interaccion")
-#> Ignoring unknown labels:
-#> • colour : "N"
 
 plot(res, comparacion = "P", tipo = "cajas")
 

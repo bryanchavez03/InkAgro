@@ -36,6 +36,9 @@
 <h2 class="pkg-version" data-toc-text="0.1.0" id="inkagro-010">InkAgro 0.1.0<a class="anchor" aria-label="anchor" href="#inkagro-010"></a></h2>
 <ul><li><p>Nueva <code><a href="../reference/preparar.html">preparar()</a></code>: ordena tablas de campo hechas a mano (títulos, filas de promedio o total, notas al pie, celdas combinadas, bloques en columnas, encabezados en dos filas, unidades en el encabezado, coma decimal) y anota cada cambio. Lo dudoso no se corrige: queda en <code>revisar</code>. <code><a href="../reference/exportar.html">exportar()</a></code> la guarda en Excel (hojas datos, cambios y revisar) y CSV, e <code><a href="../reference/inkagro.html">inkagro()</a></code> acepta el resultado directamente.</p></li>
 <li><p><code>inkagro_clean()</code> deja de exportarse: modificaba datos sin avisar.</p></li>
+<li><p>Con parcelas perdidas (DBCA o factorial desbalanceado), las medias y la comparación con Tukey o LSD se calculan ajustadas por el modelo (medias de mínimos cuadrados, iguales a las de ‘emmeans’), en lugar de promedios simples sesgados por las parcelas que faltan.</p></li>
+<li><p>Los avisos muestran la fila del archivo original (la del Excel cuando los datos vienen de <code><a href="../reference/preparar.html">preparar()</a></code>).</p></li>
+<li><p>El gráfico de interacción en escala de grises ya no da avisos de ‘ggplot2’.</p></li>
 <li><p>Primera versión pública.</p></li>
 <li><p><code><a href="../reference/inkagro.html">inkagro()</a></code> reemplaza a <code>inkagro_auto()</code>, <code>inkagro_detect()</code>, <code>inkagro_analyze()</code>, <code>inkagro_supuestos()</code> e <code>inkagro_plot()</code>.</p></li>
 <li><p>El diseño se declara (o se infiere de los argumentos) y se verifica contra la estructura de los datos; ya no se adivina por el nombre de las columnas.</p></li>

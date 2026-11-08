@@ -68,7 +68,5 @@ if (requireNamespace("officer", quietly = TRUE) &&
                  diseno = "factorial")
   archivo <- informe(res, file.path(tempdir(), "informe.docx"))
 }
-#> Ignoring unknown labels:
-#> • colour : "N"
 # }
 ```

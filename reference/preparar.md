@@ -86,10 +86,10 @@ p
 #> ------------------------------------------------------------------
 #> 6 filas x 4 columnas: variedad, iii, bloque, rendimiento
 #> 
-#> Cambios hechos (5)
+#> Cambios hechos (4)
 #>   - Fila de resumen: Se quitó la fila 'Promedio' (no es una parcela).
-#>   - Coma decimal: Se leyó la coma como decimal en 3 valor(es) de 'i'.
-#>   - Coma decimal: Se leyó la coma como decimal en 3 valor(es) de 'ii'.
+#>   - Coma decimal: Se leyó la coma como decimal en 6 valor(es) (columnas
+#>     'i', 'ii').
 #>   - Formato ancho a largo: Las columnas 'i', 'ii' eran bloques o
 #>     repeticiones; se pasó a una fila por parcela con la columna 'bloque'.
 #>   - Etiquetas unificadas: 'inia 1' -> 'INIA 1'

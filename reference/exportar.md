@@ -43,6 +43,6 @@ if (requireNamespace("writexl", quietly = TRUE)) {
   p <- preparar(crudo)
   exportar(p, file.path(tempdir(), "datos_ordenados.xlsx"))
 }
-#> Guardado: /tmp/Rtmp9keI24/datos_ordenados.xlsx y /tmp/Rtmp9keI24/datos_ordenados.csv
+#> Guardado: /tmp/RtmpzngTNQ/datos_ordenados.xlsx y /tmp/RtmpzngTNQ/datos_ordenados.csv
 # }
 ```
