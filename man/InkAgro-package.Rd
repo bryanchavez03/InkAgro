@@ -16,12 +16,18 @@ estadística.
 Useful links:
 \itemize{
   \item \url{https://github.com/bryanchavez03/InkAgro}
+  \item \url{https://bryanchavez03.github.io/InkAgro/}
   \item Report bugs at \url{https://github.com/bryanchavez03/InkAgro/issues}
 }
 
 }
 \author{
 \strong{Maintainer}: Bryan Joseph Chavez Velaisosa \email{7366989122@untrm.edu.pe}
+
+Authors:
+\itemize{
+  \item Bryan Joseph Chavez Velaisosa \email{7366989122@untrm.edu.pe}
+}
 
 }
 \keyword{internal}

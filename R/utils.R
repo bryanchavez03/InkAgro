@@ -1,6 +1,7 @@
 # Funciones internas de apoyo: lectura, columnas, conversiones y formato.
 
 .ink_leer <- function(datos) {
+  if (inherits(datos, "inkagro_preparado")) return(datos$datos)
   if (is.data.frame(datos)) return(as.data.frame(datos))
   if (!is.character(datos) || length(datos) != 1L) {
     stop("'datos' debe ser un data.frame o la ruta a un archivo.", call. = FALSE)

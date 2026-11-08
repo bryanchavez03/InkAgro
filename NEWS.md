@@ -1,5 +1,13 @@
 # InkAgro 0.1.0
 
+* Nueva `preparar()`: ordena tablas de campo hechas a mano (títulos, filas de
+  promedio o total, notas al pie, celdas combinadas, bloques en columnas,
+  encabezados en dos filas, unidades en el encabezado, coma decimal) y anota
+  cada cambio. Lo dudoso no se corrige: queda en `revisar`. `exportar()` la
+  guarda en Excel (hojas datos, cambios y revisar) y CSV, e `inkagro()` acepta
+  el resultado directamente.
+* `inkagro_clean()` deja de exportarse: modificaba datos sin avisar.
+
 * Primera versión pública.
 * `inkagro()` reemplaza a `inkagro_auto()`, `inkagro_detect()`,
   `inkagro_analyze()`, `inkagro_supuestos()` e `inkagro_plot()`.

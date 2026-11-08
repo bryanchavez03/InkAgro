@@ -29,8 +29,10 @@
 #' tratamientos o un factorial incompleto), se detiene con un mensaje que
 #' explica el problema en lugar de producir un análisis incorrecto.
 #'
-#' @param datos Un `data.frame` o la ruta a un archivo `.csv`, `.txt`,
-#'   `.tsv`, `.xlsx`, `.xls`, `.rds`, `.sav` o `.dta`.
+#' @param datos Un `data.frame`, la ruta a un archivo `.csv`, `.txt`,
+#'   `.tsv`, `.xlsx`, `.xls`, `.rds`, `.sav` o `.dta`, o una tabla ordenada
+#'   con [preparar()]. Si el Excel tiene títulos, filas de promedio o los
+#'   bloques en columnas, pásalo primero por [preparar()].
 #' @param respuesta Nombre de la columna con la variable medida (por
 #'   ejemplo, rendimiento). No distingue mayúsculas.
 #' @param tratamiento Nombre de la columna de tratamientos. En factoriales

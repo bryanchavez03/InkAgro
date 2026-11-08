@@ -24,7 +24,7 @@
 #' sucio <- data.frame(Bloque = c("B1", "b1 ", "B2", "B2"),
 #'                     Rendimiento = c("4.5", "NA", "5.1", "4.9"))
 #' inkagro_clean(sucio)
-#' @export
+#' @noRd
 inkagro_clean <- function(datos, verbose = TRUE,
                           imputar = "ninguno",
                           sinonimos = NULL) {
