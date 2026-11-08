@@ -256,3 +256,10 @@
   }
   list(codigo = codigo, aviso = character())
 }
+
+# Si la sesion permite preguntar en la consola. La opcion
+# 'inkagro.interactivo' permite desactivarlo (lo usan las pruebas, que en
+# RStudio corren en una sesion interactiva).
+.ink_interactivo <- function() {
+  isTRUE(getOption("inkagro.interactivo", interactive()))
+}

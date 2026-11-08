@@ -111,6 +111,15 @@ inkagro <- function(datos, respuesta, tratamiento,
 
   crudo <- .ink_leer(datos)
   if (nrow(crudo) == 0L) stop("Los datos no tienen filas.", call. = FALSE)
+  # Numero de fila que se muestra en los avisos: la fila del archivo original
+  # (en Excel o CSV la fila 1 es el encabezado), para que se pueda ubicar.
+  fila_origen <- if (inherits(datos, "inkagro_preparado")) {
+    datos$fila_excel
+  } else if (is.character(datos)) {
+    seq_len(nrow(crudo)) + 1L
+  } else {
+    seq_len(nrow(crudo))
+  }
 
   nm <- list(
     respuesta   = .ink_col(crudo, respuesta, "respuesta"),
@@ -149,7 +158,7 @@ inkagro <- function(datos, respuesta, tratamiento,
       if (sum(!completos) == 1L) "excluy\u00f3" else "excluyeron",
       sum(!completos), if (sum(!completos) == 1L) "fila" else "filas",
       if (sum(!completos) == 1L) "fila" else "filas",
-      .ink_lista(d$.fila[!completos])))
+      .ink_lista(fila_origen[d$.fila[!completos]])))
   }
   d <- droplevels(d[completos, , drop = FALSE])
   otras <- crudo[, setdiff(names(crudo), usados), drop = FALSE]
@@ -170,7 +179,7 @@ inkagro <- function(datos, respuesta, tratamiento,
         "Se %s %d %s (%s %s) y se repiti\u00f3 el an\u00e1lisis sin %s.",
         if (nrow(atip) == 1L) "excluy\u00f3" else "excluyeron", nrow(atip),
         if (nrow(atip) == 1L) "valor at\u00edpico" else "valores at\u00edpicos",
-        if (nrow(atip) == 1L) "fila" else "filas", .ink_lista(atip$fila),
+        if (nrow(atip) == 1L) "fila" else "filas", .ink_lista(fila_origen[atip$fila]),
         if (nrow(atip) == 1L) "\u00e9l" else "ellos"), reintento$av)
       d      <- d2
       ajuste <- reintento$ajuste
@@ -195,6 +204,8 @@ inkagro <- function(datos, respuesta, tratamiento,
       "Con interacci\u00f3n significativa, la curva de regresi\u00f3n promedia ",
       "los niveles del otro factor; interpr\u00e9tala con cuidado."))
   }
+
+  atip$fila <- fila_origen[atip$fila]
 
   structure(
     list(

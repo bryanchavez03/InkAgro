@@ -38,6 +38,7 @@ test_that("formato ancho con titulo, promedio, coma decimal y celdas combinadas"
   expect_true(any(p$revisar$valor == "s/d", na.rm = TRUE))
   expect_true(any(p$revisar$fila == 6L, na.rm = TRUE))   # fila de Excel de 's/d'
   expect_true(any(p$revisar$columna == "valor", na.rm = TRUE))
+  expect_equal(sum(p$cambios$tipo == "Coma decimal"), 1L)
   p2 <- preparar(f, variable = "Rendimiento")
   expect_named(p2$datos, c("variedad", "dosis_n", "bloque", "rendimiento"))
   expect_false(any(p2$revisar$columna == "valor", na.rm = TRUE))
@@ -128,4 +129,21 @@ test_that("inkagro() analiza directamente una tabla preparada", {
   ref <- stats::anova(stats::lm(rendimiento ~ bloque + tratamiento, data = p$datos))
   expect_equal(res$n, 9L)
   expect_equal(res$anova$F[res$anova$termino == "A"], ref[["F value"]][2])
+})
+
+test_that("inkagro() reporta la fila del Excel, no la de la tabla ordenada", {
+  skip_if_not_installed("writexl")
+  skip_if_not_installed("agricolae")
+  f <- excel_crudo(list(
+    c("Ensayo de papa"),
+    c("Variedad", "Dosis", "I", "II", "III"),
+    c("A", "0",  "12,5", "13,1", "11,8"),
+    c(NA,  "80", "18,2", "17,9", "19,0"),
+    c("B", "0",  "10,4", "s/d",  "10,9"),
+    c(NA,  "80", "15,1", "14,7", "15,6")
+  ))
+  p <- preparar(f, variable = "rendimiento")
+  res <- inkagro(p, "rendimiento", "variedad", factor_b = "dosis", bloque = "bloque",
+                 diseno = "factorial")
+  expect_match(res$avisos, "\\(fila 5\\)", all = FALSE)
 })

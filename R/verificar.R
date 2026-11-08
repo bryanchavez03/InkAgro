@@ -161,8 +161,7 @@
   }
   sprintf(paste0(
     "Faltan %d combinaci\u00f3n(es) %s x bloque (parcelas perdidas). Se usa suma de ",
-    "cuadrados tipo II (efectos ajustados por bloque); las medias mostradas ",
-    "son aritm\u00e9ticas."), vacias, nombre_trat)
+    "cuadrados tipo II (efectos ajustados por bloque)."), vacias, nombre_trat)
 }
 
 .ink_verificar_factorial <- function(d, nm, tiene_blq) {

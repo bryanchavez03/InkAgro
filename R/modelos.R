@@ -88,13 +88,36 @@
   comparar <- function(y, g, err) {
     .ink_comparar(y, g, err[["gl"]], err[["cm"]], prueba, alfa)
   }
+  # Con parcelas perdidas (DBCA o factorial desbalanceado), las medias se
+  # ajustan con el modelo; la media aritmetica estaria sesgada.
+  ajustar <- !balanceado && codigo %in% c("dbca", "factorial")
+  usar_ajuste <- ajustar && prueba %in% c("tukey", "lsd")
+  comparar_ef <- function(termino, y, g, err) {
+    if (usar_ajuste) {
+      m <- .ink_comparar_ajustado(modelo, d, termino, prueba, alfa)
+      if (!is.null(m)) return(m)
+    }
+    comparar(y, g, err)
+  }
+  if (ajustar) {
+    avisos <- c(avisos, if (usar_ajuste) {
+      paste0("Como hay parcelas perdidas, las medias y su comparaci\u00f3n se ",
+             "calculan ajustadas por el modelo (medias de m\u00ednimos cuadrados), ",
+             "no como promedios simples, que estar\u00edan sesgados por las parcelas ",
+             "que faltan.")
+    } else {
+      paste0("Hay parcelas perdidas y las medias mostradas son aritm\u00e9ticas ",
+             "(pueden estar sesgadas). Para medias ajustadas usa prueba = ",
+             "\"tukey\" o prueba = \"lsd\".")
+    })
+  }
   if (codigo %in% c("dca", "dbca")) {
-    medias[[nm$tratamiento]] <- .ink_marcar(comparar(d$y, d$A, errores$A),
+    medias[[nm$tratamiento]] <- .ink_marcar(comparar_ef("A", d$y, d$A, errores$A),
                                             "A", p_de("A"))
   } else {
-    medias[[nm$tratamiento]] <- .ink_marcar(comparar(d$y, d$A, errores$A),
+    medias[[nm$tratamiento]] <- .ink_marcar(comparar_ef("A", d$y, d$A, errores$A),
                                             "A", p_de("A"))
-    medias[[nm$factor_b]] <- .ink_marcar(comparar(d$y, d$B, errores$B),
+    medias[[nm$factor_b]] <- .ink_marcar(comparar_ef("B", d$y, d$B, errores$B),
                                          "B", p_de("B"))
     p_ab <- p_de("A:B")
     if (!is.na(p_ab) && p_ab < alfa) {
@@ -106,7 +129,7 @@
       if (codigo == "factorial") {
         combo <- interaction(d$A, d$B, sep = " : ", lex.order = TRUE)
         medias[[paste(nm$tratamiento, "x", nm$factor_b)]] <-
-          .ink_marcar(comparar(d$y, combo, errores$AB), "AB", p_ab)
+          .ink_marcar(comparar_ef("AB", d$y, combo, errores$AB), "AB", p_ab)
       } else {
         for (a in levels(d$A)) {
           sel <- d$A == a

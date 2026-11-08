@@ -7,6 +7,13 @@
   guarda en Excel (hojas datos, cambios y revisar) y CSV, e `inkagro()` acepta
   el resultado directamente.
 * `inkagro_clean()` deja de exportarse: modificaba datos sin avisar.
+* Con parcelas perdidas (DBCA o factorial desbalanceado), las medias y la
+  comparación con Tukey o LSD se calculan ajustadas por el modelo (medias de
+  mínimos cuadrados, iguales a las de 'emmeans'), en lugar de promedios
+  simples sesgados por las parcelas que faltan.
+* Los avisos muestran la fila del archivo original (la del Excel cuando los
+  datos vienen de `preparar()`).
+* El gráfico de interacción en escala de grises ya no da avisos de 'ggplot2'.
 
 * Primera versión pública.
 * `inkagro()` reemplaza a `inkagro_auto()`, `inkagro_detect()`,

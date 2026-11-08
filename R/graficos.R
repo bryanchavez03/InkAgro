@@ -216,7 +216,9 @@ plot.inkagro <- function(x, comparacion = NULL,
     ggplot2::scale_shape_manual(values = rep(c(21, 16, 24, 15, 22, 17),
                                              length.out = nlevels(d$A))) +
     ggplot2::labs(x = nm$factor_b, y = nm$respuesta, shape = nm$tratamiento,
-                  linetype = nm$tratamiento, colour = nm$tratamiento)
+                  linetype = nm$tratamiento)
+  # La etiqueta de color solo existe si se usa color (si no, ggplot2 avisa)
+  if (estilo != "articulo") g <- g + ggplot2::labs(colour = nm$tratamiento)
   g
 }
 
@@ -351,7 +353,7 @@ graficos <- function(x) {
   if (!inherits(x, "inkagro")) {
     stop("'x' debe ser el resultado de inkagro().", call. = FALSE)
   }
-  if (!interactive()) {
+  if (!.ink_interactivo()) {
     stop("graficos() pregunta en la consola y solo funciona en una sesi\u00f3n ",
          "interactiva. En un script usa plot(res, tipo = ...).", call. = FALSE)
   }

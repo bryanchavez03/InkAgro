@@ -172,12 +172,13 @@ preparar <- function(datos, hoja = NULL, variable = NULL) {
   }
 
   # 6. Numeros: coma decimal, texto, unidades pegadas
+  coma_n <- 0L
+  coma_cols <- character()
   for (col in names(d)[es_num]) {
     conv <- .ink_convertir_numeros(d[[col]])
     if (length(conv$coma)) {
-      reg$cambio(fila_excel[conv$coma], col, "Coma decimal",
-                 sprintf("Se ley\u00f3 la coma como decimal en %d valor(es) de '%s'.",
-                         length(conv$coma), col), resumir = TRUE)
+      coma_n <- coma_n + length(conv$coma)
+      coma_cols <- c(coma_cols, col)
     }
     if (length(conv$unidad)) {
       reg$cambio(fila_excel[conv$unidad], col, "Unidad pegada al n\u00famero",
@@ -194,6 +195,11 @@ preparar <- function(datos, hoja = NULL, variable = NULL) {
         "de miles, corrige el archivo."))
     }
     d[[col]] <- conv$valor
+  }
+  if (coma_n > 0L) {
+    reg$cambio(NA, paste(coma_cols, collapse = ", "), "Coma decimal", sprintf(
+      "Se ley\u00f3 la coma como decimal en %d valor(es) (columnas %s).",
+      coma_n, paste0("'", coma_cols, "'", collapse = ", ")))
   }
 
   # 7. Formato ancho: bloques o repeticiones como columnas

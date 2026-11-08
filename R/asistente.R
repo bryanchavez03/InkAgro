@@ -20,7 +20,7 @@
 #' }
 #' @export
 asistente <- function(datos) {
-  if (!interactive()) {
+  if (!.ink_interactivo()) {
     stop("asistente() hace preguntas en la consola y solo funciona en una ",
          "sesi\u00f3n interactiva. En un script usa inkagro() directamente.",
          call. = FALSE)

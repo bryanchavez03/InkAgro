@@ -223,6 +223,8 @@ test_that("graficos nuevos y menu fuera de sesion interactiva", {
   expect_s3_class(plot(res, tipo = "puntos"), "ggplot")
   expect_s3_class(plot(res, tipo = "residuos"), "ggplot")
   expect_error(plot(res, tipo = "regresion"), "cuantitativo")
+  op <- options(inkagro.interactivo = FALSE)
+  on.exit(options(op), add = TRUE)
   expect_error(graficos(res), "interactiva")
 })
 
@@ -287,6 +289,8 @@ test_that("el asistente filtra una localidad y explica cuando no se sabe", {
 })
 
 test_that("asistente() y leer_datos() fuera de sesion interactiva", {
+  op <- options(inkagro.interactivo = FALSE)
+  on.exit(options(op), add = TRUE)
   expect_error(asistente(PlantGrowth), "interactiva")
   f <- tempfile(fileext = ".csv")
   on.exit(unlink(f))
